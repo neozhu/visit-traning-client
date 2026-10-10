@@ -2,8 +2,8 @@
   <block wx:if="{{task && lesson}}">
     <view class="row between"><view class="section-title">{{lesson.title}}</view><text class="muted small">{{selected + 1}} / {{lessons.length}}</text></view>
     <view class="subtitle">{{title}}</view>
-    <video id="lesson-video" class="lesson-video section" src="{{lesson.source}}" poster="/assets/lesson-cover.png" controls show-center-play-btn enable-progress-gesture="{{watched}}" show-progress="{{watched}}" bindloadedmetadata="onMetadata" bindtimeupdate="onTimeUpdate" bindended="onEnded" binderror="onVideoError" object-fit="contain" />
-    <view wx:if="{{videoError}}" class="error-banner">{{videoError}}</view>
+    <video id="lesson-video" class="lesson-video section" src="{{videoSource}}" poster="/assets/lesson-cover.png" controls show-center-play-btn enable-progress-gesture="{{watched}}" show-progress="{{watched}}" bindloadedmetadata="onMetadata" bindtimeupdate="onTimeUpdate" bindended="onEnded" binderror="onVideoError" object-fit="contain" />
+    <view wx:if="{{videoError}}" class="info-banner">{{watched ? '演示学习已完成，可以继续。' : videoError}}<view wx:if="{{fallbackActive}}">演示倒计时：{{fallbackRemaining}} 秒</view></view>
     <view class="row between lesson-caption"><text class="muted small">短版教学演示 · {{lesson.duration}}</text><text class="status {{watched ? 'complete' : 'active'}}">{{watched ? '已完成观看' : '观看进度 ' + progress + '%'}}</text></view>
     <view class="section-title section">视频简介</view><view class="card section lesson-description">{{lesson.description}}</view>
     <button wx:if="{{!allDone}}" class="primary section complete-video" disabled="{{!watched}}" bindtap="onContinue" hover-class="press">{{watched ? '继续下一段视频' : '请完整观看本段视频'}}</button>

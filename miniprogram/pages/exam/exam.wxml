@@ -2,9 +2,10 @@
   <block wx:if="{{valid && question}}">
     <view class="row between"><view><text class="question-position">{{current + 1}}</text><text class="muted"> / {{questions.length}}</text></view><view class="muted small">剩余时间 <text class="timer {{remainingSeconds > 59 ? '' : 'urgent'}}">{{remaining}}</text></view></view>
     <view class="exam-progress section"><view style="width: {{progress}}%"></view></view><view class="subtitle">{{title}}</view>
-    <view class="status red section">单选题 · 每题 10 分</view><view class="question-title section">{{question.title}}</view>
+    <view class="status red section">单选题 · 每题 20 分</view><view class="muted small section">选完自动进入下一题，可点题号返回修改。</view><view class="question-title section">{{question.title}}</view>
     <view class="stack section"><button wx:for="{{options}}" wx:key="index" class="option {{item.selected ? 'selected' : ''}}" data-index="{{item.index}}" bindtap="onChoose" hover-class="press" aria-label="{{item.label + '，' + item.text + (item.selected ? '，已选择' : '')}}"><view class="radio-circle">{{item.selected ? '●' : ''}}</view><view class="grow">{{item.label}}. {{item.text}}</view></button></view>
-    <view class="row between section"><text class="muted small">答题卡</text><text class="muted small">已答 {{answered}} / {{questions.length}}</text></view><view class="answer-grid section"><button wx:for="{{questionStates}}" wx:key="index" class="answer-chip {{item.answered ? 'answered' : ''}} {{current === item.index ? 'current' : ''}}" data-index="{{item.index}}" bindtap="onJump" aria-label="第{{item.index + 1}}题{{item.answered ? '，已答' : '，未答'}}">{{item.index + 1}}</button></view>
+    <view wx:if="{{feedback}}" class="error-banner">{{feedback}}</view>
+    <view class="row between section"><text class="muted small">答题卡</text><text class="muted small">已答 {{answered}} / {{questions.length}}</text></view><view class="answer-grid section"><button wx:for="{{questionStates}}" wx:key="index" class="answer-chip {{item.answered ? 'answered' : ''}} {{item.wrong ? 'wrong' : ''}} {{current === item.index ? 'current' : ''}}" data-index="{{item.index}}" bindtap="onJump" aria-label="第{{item.index + 1}}题{{item.wrong ? '，回答错误，可修改' : (item.answered ? '，已答' : '，未答')}}">{{item.index + 1}}</button></view>
     <view wx:if="{{error}}" class="error-banner">{{error}}</view>
     <button class="text-button submit-exam" bindtap="onSubmit">提交试卷</button><view class="muted small center">80 分通过 · 离开页面后倒计时仍继续</view>
   </block>

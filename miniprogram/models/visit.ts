@@ -74,7 +74,7 @@ export function normalizePlate(plate: string) {
 }
 
 export function validateDraft(draft: Draft): string {
-  if (!draft.noticeAccepted) return '请阅读并确认访客须知'
+  if (draft.type !== 'training' && !draft.noticeAccepted) return '请阅读并确认访客须知'
   if (!Object.prototype.hasOwnProperty.call(ENTRY_LABELS, draft.type)) return '请选择有效的登记入口'
   const phones = new Set<string>()
   if (draft.type === 'logistics') {
@@ -98,7 +98,7 @@ export function validateDraft(draft: Draft): string {
       if (draft.type === 'contractor' && !person.trade.trim()) return '请填写施工人员工种'
     }
   }
-  if (!draft.areaIds.length || draft.areaIds.some(id => !['production', 'research', 'office'].includes(id))) {
+  if ((draft.type !== 'training' && !draft.areaIds.length) || draft.areaIds.some(id => !['production', 'research', 'office'].includes(id))) {
     return '请至少选择一个有效访问区域'
   }
   return ''

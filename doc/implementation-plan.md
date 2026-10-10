@@ -10,10 +10,10 @@
 
 ## Demo decisions
 
-- Four entry types: training, visitor, logistics, contractor. The training entry can also resume previously registered training.
-- Registration has notice confirmation, editable people/vehicles, multi-select areas, and a final review. Logistics requires driver and vehicle information; contractors require trade information.
+- Four entry types: training, visitor, logistics, contractor. Training is a standalone multi-person form → general safety video → quiz flow, without a visitor notice, area selection or review step. Existing applications resume from the home pending link or records.
+- Visitor/logistics/contractor registration has notice confirmation, editable people/vehicles, multi-select areas, and a final review. Logistics requires driver and vehicle information; contractors require trade information.
 - Each application receives one task per chosen area plan and applicable logistics/construction safety plan. People and vehicles on that application share its completion.
-- Each plan has short local demonstration videos and 10 single-choice questions. All videos must finish before an exam starts; pass mark is 80, time limit is 15 minutes.
+- Each plan has short local demonstration videos and 5 single-choice questions (20 points each). Video playback or a six-second fallback countdown after loading failure must finish before an exam starts; pass mark is 80, time limit is 15 minutes.
 - Retakes retain completed videos but reset answers and the timer. Back navigation, reload and expired exams retain consistent state.
 - Records start empty; an explicit fill-demo-data button supplies fictitious registration fields. No real personal data or remote media is needed.
 

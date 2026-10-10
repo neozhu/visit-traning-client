@@ -7,7 +7,7 @@ export const AREAS = [
 ]
 
 export const ENTRY_DESCRIPTIONS: Record<EntryType, string> = {
-  training: '已登记人员继续学习', visitor: '来访人员登记与培训',
+  training: '填写信息，直接开始安全培训', visitor: '来访人员登记与培训',
   logistics: '司机及车辆登记与培训', contractor: '施工人员登记与培训'
 }
 
@@ -46,6 +46,9 @@ const lesson = (id: string, title: string, description: string, video: string): 
 })
 
 const definitions = [
+  { id: 'general', title: '通用安全培训', subtitle: '了解园区安全规范与应急要求', icon: 'book', lessons: [
+    lesson('general-safety', '园区安全基础知识', '了解人行通道、设备安全、个人防护与应急疏散。学习后完成安全知识考试。', 'safety')
+  ] },
   { id: 'production', title: '生产区域安全培训', subtitle: '认识风险，安全进入生产现场', icon: 'factory', lessons: [
     lesson('production-safety', '生产区域安全须知', '了解人行通道、设备安全与应急疏散；到访期间请始终遵守现场标识和管理人员安排。', 'safety'),
     lesson('production-ppe', '个人防护用品使用', '正确佩戴安全帽和必要防护用品。未经授权不要触碰设备，发现隐患及时报告。', 'ppe')
@@ -65,7 +68,7 @@ const definitions = [
 ]
 
 export const PLANS: Plan[] = definitions.map(plan => ({
-  ...plan, questions: baseQuestions.map((question, index) => ({ ...question, options: [...question.options], id: `${plan.id}-q${index + 1}` }))
+  ...plan, questions: baseQuestions.slice(0, 5).map((question, index) => ({ ...question, options: [...question.options], id: `${plan.id}-q${index + 1}` }))
 }))
 
 // Dedicated plans also assess the role-specific lesson instead of only generic safety.
@@ -87,6 +90,7 @@ export function getPlan(id: string): Plan {
 }
 
 export function matchPlans(type: EntryType, areaIds: string[]) {
+  if (type === 'training') return ['general']
   const ids = areaIds.filter(id => AREAS.some(area => area.id === id))
   if (type === 'logistics') ids.push('traffic')
   if (type === 'contractor') ids.push('construction')

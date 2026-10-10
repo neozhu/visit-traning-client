@@ -6,7 +6,7 @@
   <view wx:if="{{tab === 'visits'}}" class="stack">
     <button wx:for="{{visits}}" wx:key="id" class="card record-card" data-id="{{item.id}}" bindtap="onVisit" hover-class="press">
       <view class="row"><image class="icon" src="/assets/{{item.icon}}.svg" aria-hidden="true" /><view class="grow"><view class="section-title">{{item.title}}</view><view class="muted small">{{item.date}}</view></view><text class="status {{item.passed ? 'complete' : ''}}">{{item.passed ? '已完成' : '培训中'}}</text></view>
-      <view class="divider"></view><view class="row"><view class="grow"><view>{{item.names}}</view><view wx:if="{{item.type === 'logistics'}}" class="muted">{{item.plates}}</view><view class="muted">访问区域：{{item.areaNames}}</view><view class="small muted">培训进度：{{item.complete}} / {{item.total}} 项</view></view><text class="chevron">›</text></view>
+      <view class="divider"></view><view class="row"><view class="grow"><view>{{item.names}}</view><view wx:if="{{item.type === 'logistics'}}" class="muted">{{item.plates}}</view><view class="muted">{{item.type === 'training' ? '培训方案：通用安全培训' : '访问区域：' + item.areaNames}}</view><view class="small muted">培训进度：{{item.complete}} / {{item.total}} 项</view></view><text class="chevron">›</text></view>
     </button>
     <view wx:if="{{!visits.length}}" class="card empty"><image src="/assets/book.svg" aria-hidden="true" /><view class="section-title">{{keyword ? '未找到匹配记录' : '还没有到访记录'}}</view><view class="subtitle">{{keyword ? '试试其他姓名、单位或车牌。' : '完成登记后，记录会保存在这里。'}}</view><button wx:if="{{!keyword}}" class="primary" bindtap="onHome">前往首页登记</button></view>
   </view>

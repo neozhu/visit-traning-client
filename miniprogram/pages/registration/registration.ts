@@ -13,9 +13,11 @@ Page({
   },
   onLoad(query: Record<string, string>) {
     const type: EntryType = Object.prototype.hasOwnProperty.call(ENTRY_LABELS, query.type) ? query.type as EntryType : 'visitor'
-    const draft = store.draft(type)
-    this.setData({ type, title: `${ENTRY_LABELS[type]}登记`, noticeOpen: !draft.noticeAccepted, noticeChecked: draft.noticeAccepted })
-    wx.setNavigationBarTitle({ title: `${ENTRY_LABELS[type]}登记` })
+    let draft = store.draft(type)
+    if (type === 'training') draft = { ...draft, noticeAccepted: true, areaIds: [], vehicles: [] }
+    const title = type === 'training' ? '学习培训' : `${ENTRY_LABELS[type]}登记`
+    this.setData({ type, title, noticeOpen: !draft.noticeAccepted, noticeChecked: draft.noticeAccepted })
+    wx.setNavigationBarTitle({ title })
     this.sync(draft)
   },
   sync(draft: Draft) {
@@ -100,7 +102,11 @@ Page({
   onSubmit() {
     if (this.data.submitting) return
     this.setData({ submitting: true })
-    try { const visit = store.register(this.data.draft); wx.redirectTo({ url: `/pages/tasks/tasks?visitId=${visit.id}` }) }
-    catch (error) { this.setData({ submitting: false }); showError(error) }
+    try {
+      const visit = store.register(this.data.draft)
+      const task = store.tasks(visit.id)[0]
+      wx.redirectTo({ url: this.data.type === 'training' ? `/pages/learn/learn?taskId=${task.id}` : `/pages/tasks/tasks?visitId=${visit.id}` })
+    }
+    catch (error) { this.setData({ submitting: false, error: error instanceof Error ? error.message : '请检查登记信息' }); showError(error) }
   }
 })

@@ -27,8 +27,8 @@ function call(tool, flags = {}) {
   if (!response.ok || response.result?.success === false) throw new Error(tool + ': ' + JSON.stringify(response))
   return response.result
 }
-const data = (wait = 0) => call('automation_page_action', { action: 'getData', wait }).data
-const tap = selector => call('automation_element_action', { action: 'tap', selector, 'wait-for-selector': selector })
+const data = (wait = 0) => evaluate("function(ms){ return new Promise(function(resolve){ setTimeout(function(){ var pages=getCurrentPages(); resolve(pages[pages.length-1].data); },ms); }); }", [wait * 1000])
+const tap = selector => call('automation_element_action', { action: 'trigger', type: 'tap', selector })
 const input = (selector, value) => call('automation_element_action', { action: 'input', selector, value })
 const evaluate = (source, args) => {
   const response = call('automation_evaluate', { 'fn-source': source, 'args-file': args ? jsonFile(args) : undefined })

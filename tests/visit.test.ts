@@ -23,6 +23,7 @@ test('区域匹配去重，施工/物流增加专属课程', () => {
   assert.deepEqual(matchPlans('visitor', ['production', 'production', 'research']), ['production', 'research'])
   assert.deepEqual(matchPlans('logistics', ['production']), ['production', 'traffic'])
   assert.deepEqual(matchPlans('contractor', ['office']), ['office', 'construction'])
+  assert.deepEqual(matchPlans('training', []), ['general'])
   assert.equal(AREAS.length, 3)
 })
 
@@ -106,6 +107,18 @@ test('多人申请单中每门课程只生成一个任务', () => {
   assert.equal(store.tasks(visit.id).length, 2)
 })
 
+test('学习培训独立流程只需人员信息，无须区域或访客须知', () => {
+  const { store, draft } = setup()
+  draft.type = 'training'
+  draft.areaIds = []
+  draft.noticeAccepted = false
+  draft.people.push({ ...draft.people[0], id: 'p2', name: '李四', phone: '13900139000' })
+  assert.equal(validateDraft(draft), '')
+  const visit = store.register(draft)
+  assert.equal(visit.people.length, 2)
+  assert.deepEqual(store.tasks(visit.id).map(t => t.planId), ['general'])
+})
+
 test('多车辆申请单共享区域与物流课程，记录不保留无关人员', () => {
   const { store, draft } = setup()
   draft.type = 'logistics'
@@ -149,6 +162,52 @@ test('损坏草稿、未知课程、无效答案被丢弃，其余申请单可�
   assert.equal(restored.tasks().length, 1)
 })
 
+test('损坏的必修任务重建为空进度，不把未完成申请单误判为已完成', () => {
+  const { store, storage, data, draft } = setup()
+  draft.areaIds = ['production', 'research']
+  const visit = store.register(draft)
+  const tasks = store.tasks(visit.id)
+  const plan = getPlan('production')
+  plan.lessons.forEach(l => store.markLesson(tasks[0].id, l.id))
+  store.beginExam(tasks[0].id)
+  plan.questions.forEach(q => store.answer(tasks[0].id, q.id, q.correct))
+  store.finishExam(tasks[0].id)
+  const cache = data.get('visitsafe.demo.v1') as { tasks: Array<{ planId: string }> }
+  cache.tasks[1].planId = 'broken-plan'
+  const restored = createVisitStore(storage)
+  assert.equal(restored.visitStatus(visit.id), 'learning')
+  assert.equal(restored.tasks(visit.id).length, 2)
+  assert.deepEqual(restored.tasks(visit.id).find(t => t.planId === 'research')?.completedLessonIds, [])
+})
+
+test('十题旧缓存保留视频和前五题答案，成绩按五题重新计算', () => {
+  const { store, storage, data, draft } = setup()
+  const task = store.tasks(store.register(draft).id)[0]
+  const plan = getPlan(task.planId)
+  const answers = Object.fromEntries(plan.questions.map(q => [q.id, q.correct]))
+  for (let index = 6; index <= 10; index++) answers[`production-q${index}`] = 0
+  const cache = data.get('visitsafe.demo.v1') as { tasks: unknown[] }
+  cache.tasks = [{ ...task, completedLessonIds: plan.lessons.map(l => l.id), completedAt: task.createdAt,
+    lastResult: { score: 100, passed: true, answers, wrongIds: [], submittedAt: task.createdAt, timedOut: false } }]
+  const restored = createVisitStore(storage)
+  const result = restored.task(task.id)?.lastResult
+  assert.equal(result?.score, 100)
+  assert.equal(Object.keys(result!.answers).length, 5)
+  assert.equal(restored.task(task.id)?.completedLessonIds.length, 2)
+})
+
+test('旧版超时考试的未答题记录不会丢失已完成视频', () => {
+  const { store, storage, data, draft } = setup()
+  const task = store.tasks(store.register(draft).id)[0]
+  const cache = data.get('visitsafe.demo.v1') as { tasks: unknown[] }
+  cache.tasks = [{ ...task, completedLessonIds: getPlan(task.planId).lessons.map(l => l.id),
+    lastResult: { score: 0, passed: false, answers: {}, wrongIds: Array.from({ length: 10 }, (_, i) => `production-q${i + 1}`), submittedAt: task.createdAt, timedOut: true } }]
+  const restored = createVisitStore(storage).task(task.id)
+  assert.equal(restored?.completedLessonIds.length, 2)
+  assert.equal(restored?.lastResult?.wrongIds.length, 5)
+  assert.equal(restored?.lastResult?.timedOut, true)
+})
+
 test('视频未完成时不能考试，非法课程不能计入学习进度', () => {
   const { store, draft } = setup()
   const task = store.tasks(store.register(draft).id)[0]
@@ -162,17 +221,18 @@ test('视频未完成时不能考试，非法课程不能计入学习进度', ()
   assert.ok(store.task(task.id)?.attempt)
 })
 
-test('10题按真实答案评分，80分通过，未答不能计分', () => {
+test('5题每题20分，80分通过，未答不能计分', () => {
   const questions = getPlan('production').questions
   const answers: Record<string, number> = {}
-  questions.slice(0, 8).forEach(q => { answers[q.id] = q.correct })
+  assert.equal(questions.length, 5)
+  questions.slice(0, 4).forEach(q => { answers[q.id] = q.correct })
   const result = gradeExam(questions, answers)
   assert.equal(result.score, 80)
   assert.equal(result.passed, true)
-  assert.equal(result.wrongIds.length, 2)
+  assert.equal(result.wrongIds.length, 1)
   assert.equal(gradeExam(questions, {}).score, 0)
   answers[questions[0].id] = -1
-  assert.equal(gradeExam(questions, answers).score, 70)
+  assert.equal(gradeExam(questions, answers).score, 60)
 })
 
 test('考试答案和倒计时截止时间在重载后保留', () => {

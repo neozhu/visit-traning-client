@@ -1,5 +1,9 @@
 <view class="page with-footer">
-  <view class="steps">
+  <block wx:if="{{type === 'training'}}">
+    <view class="eyebrow">SAFETY TRAINING</view><view class="title">填写培训人员</view><view class="subtitle">支持添加多人，填完直接开始视频学习与考试。</view>
+    <view class="info-banner">本申请单只需完成一次通用培训 · 5 道题 · 80 分通过</view>
+  </block>
+  <view wx:if="{{type !== 'training'}}" class="steps">
     <view class="step {{step === 1 ? 'current' : ''}} {{step > 1 ? 'done' : ''}}"><view class="step-number">{{step > 1 ? '✓' : '1'}}</view><text>{{type === 'logistics' ? '车辆信息' : '人员信息'}}</text></view>
     <view class="step-line {{step > 1 ? 'done' : ''}}"></view>
     <view class="step {{step === 2 ? 'current' : ''}} {{step > 2 ? 'done' : ''}}"><view class="step-number">{{step > 2 ? '✓' : '2'}}</view><text>访问区域</text></view>
@@ -7,7 +11,7 @@
     <view class="step {{step === 3 ? 'current' : ''}}"><view class="step-number">3</view><text>确认提交</text></view>
   </view>
   <block wx:if="{{step === 1}}">
-    <view class="row between section"><text class="section-title">{{type === 'logistics' ? '车辆列表' : (type === 'contractor' ? '施工人员' : '来访人员')}}（{{rows.length}}）</text><button class="text-button add-entry" bindtap="onAdd" hover-class="press">＋ 添加{{type === 'logistics' ? '车辆' : '人员'}}</button></view>
+    <view class="row between section"><text class="section-title">{{type === 'logistics' ? '车辆列表' : (type === 'contractor' ? '施工人员' : (type === 'training' ? '培训人员' : '来访人员'))}}（{{rows.length}}）</text><button class="text-button add-entry" bindtap="onAdd" hover-class="press">＋ 添加{{type === 'logistics' ? '车辆' : '人员'}}</button></view>
     <view class="stack">
       <view wx:for="{{rows}}" wx:key="id" class="card roster-card">
         <view class="row"><view class="list-number">{{index + 1}}</view><view class="grow"><view class="person-name">{{item.name}}</view><view class="muted">{{item.extra ? item.extra + ' · ' : ''}}{{item.phone}}</view><view class="muted">{{type === 'logistics' ? '运输单位' : '所属单位'}}：{{item.company}}</view></view></view>
@@ -31,11 +35,11 @@
     <view class="eyebrow section">READY TO VISIT</view><view class="title">请确认登记信息</view><view class="subtitle">提交后，完成本申请单匹配的培训即可。</view>
     <view class="card section"><view class="row between"><text class="muted">登记类型</text><text>{{title}}</text></view><view class="divider"></view><view class="row between"><text class="muted">{{type === 'logistics' ? '车辆数量' : '到访人数'}}</text><text>{{rows.length}} {{type === 'logistics' ? '辆' : '人'}}</text></view><view class="divider"></view><view class="row between"><text class="muted">访问区域</text><text>{{selectedAreas}}</text></view></view>
     <view class="section-title section">人员与车辆</view><view class="wrap section"><text wx:for="{{rows}}" wx:key="id" class="pill">{{item.name}}</text></view>
-    <view class="section-title section">匹配的培训方案</view><view class="card section"><view wx:for="{{planTitles}}" wx:key="*this" class="plan-line"><text class="plan-tick">✓</text><text>{{item}}</text></view><view class="divider"></view><view class="muted">共 {{taskCount}} 项任务 · 每项 10 道题 · 80 分通过</view></view>
+    <view class="section-title section">匹配的培训方案</view><view class="card section"><view wx:for="{{planTitles}}" wx:key="*this" class="plan-line"><text class="plan-tick">✓</text><text>{{item}}</text></view><view class="divider"></view><view class="muted">共 {{taskCount}} 项任务 · 每项 5 道题 · 80 分通过</view></view>
   </block>
   <view wx:if="{{error && !editorOpen}}" class="error-banner">{{error}}</view>
 </view>
-<view class="footer"><view class="footer-inner"><button class="secondary previous" bindtap="onPrevious" hover-class="press">{{step === 1 ? '返回' : '上一步'}}</button><button wx:if="{{step !== 3}}" class="primary next" bindtap="onNext" hover-class="press">下一步</button><button wx:else class="primary submit-visit" bindtap="onSubmit" loading="{{submitting}}" disabled="{{submitting}}" hover-class="press">提交并开始培训</button></view></view>
+<view class="footer"><view class="footer-inner"><button class="secondary previous" bindtap="onPrevious" hover-class="press">{{step === 1 ? '返回' : '上一步'}}</button><button wx:if="{{type !== 'training' && step !== 3}}" class="primary next" bindtap="onNext" hover-class="press">下一步</button><button wx:else class="primary submit-visit" bindtap="onSubmit" loading="{{submitting}}" disabled="{{submitting}}" hover-class="press">{{type === 'training' ? '开始学习' : '提交并开始培训'}}</button></view></view>
 <view wx:if="{{noticeOpen}}" class="overlay" catchtouchmove="noop">
   <view class="notice-modal"><image class="notice-shield" src="/assets/shield.svg" aria-hidden="true" /><view class="notice-title">访客须知</view><view class="notice-subtitle">共同守护每一次安全到访</view><view class="notice-copy"><view>1. 请如实填写到访人员及车辆信息。</view><view>2. 进入厂区需遵守公司安全管理规定。</view><view>3. 完成所选区域安全培训并通过考试。</view><view>4. 携带访客凭证，听从现场管理人员安排。</view></view><checkbox-group bindchange="onNoticeCheck"><label class="notice-agree"><checkbox value="accepted" checked="{{noticeChecked}}" color="#1768ee" /><text>我已阅读并同意以上须知内容</text></label></checkbox-group><button class="primary accept-notice" disabled="{{!noticeChecked}}" bindtap="onAccept" hover-class="press">确认并继续</button><button class="text-button" bindtap="onCancelNotice">暂不登记</button></view>
 </view>

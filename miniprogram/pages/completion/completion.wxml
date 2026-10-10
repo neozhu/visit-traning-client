@@ -1,6 +1,6 @@
 <view class="page">
   <block wx:if="{{passed}}">
-    <view class="completion-hero"><view class="certificate"><view class="certificate-line long"></view><view class="certificate-line"></view><view class="certificate-line short"></view><view class="certificate-seal">✓</view></view><view class="title">安全培训已完成</view><view class="subtitle">{{title}}</view><view class="status complete section">本申请单 · 已通过</view></view>
+    <view class="completion-hero"><view class="certificate"><view class="certificate-line long"></view><view class="certificate-line"></view><view class="certificate-line short"></view><view class="certificate-seal">✓</view></view><view class="title">安全培训已完成</view><view class="subtitle">{{title}}</view><view class="status complete section">本项培训 · 已通过</view></view>
     <view class="card"><view class="row between"><text>✓ 视频学习</text><text class="green">{{lessonCount}} / {{lessonCount}} 已完成</text></view><view class="divider"></view><view class="row between"><text>✓ 考试成绩</text><text class="green">{{task.lastResult.score}} 分（通过）</text></view><view class="divider"></view><view class="row between"><text>✓ 完成时间</text><text class="muted">{{date}}</text></view></view>
     <view class="info-banner">{{visitCompleted ? '本申请单的全部培训已完成。请携带访客凭证，并遵守现场安排。' : '本项培训已完成，请返回任务列表完成申请单的其他课程。'}}</view>
     <button class="primary section return-tasks" bindtap="onTasks">返回任务列表</button><button class="secondary section" bindtap="onRecords">查看我的记录</button>

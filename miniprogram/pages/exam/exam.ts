@@ -6,8 +6,8 @@ Page({
   data: {
     taskId: '', title: '', questions: [] as Question[], current: 0, question: null as Question | null,
     options: [] as Array<{ index: number; label: string; text: string; selected: boolean }>, answered: 0,
-    remaining: '15:00', remainingSeconds: 900, progress: 0, error: '', submitting: false,
-    questionStates: [] as Array<{ index: number; answered: boolean }>, valid: false
+    remaining: '15:00', remainingSeconds: 900, progress: 0, error: '', feedback: '', submitting: false,
+    questionStates: [] as Array<{ index: number; answered: boolean; wrong: boolean }>, valid: false
   },
   timer: undefined as number | undefined,
   onLoad(query: Record<string, string>) {
@@ -45,12 +45,19 @@ Page({
     const answers = task.attempt.answers
     const answered = this.data.questions.filter(q => answers[q.id] !== undefined).length
     this.setData({ question, answered, progress: answered / this.data.questions.length * 100,
+      feedback: answers[question.id] !== undefined && answers[question.id] !== question.correct ? '回答错误，可以重新选择答案。' : '',
       options: question.options.map((text, index) => ({ index, label: String.fromCharCode(65 + index), text, selected: answers[question.id] === index })),
-      questionStates: this.data.questions.map((q, index) => ({ index, answered: answers[q.id] !== undefined })) })
+      questionStates: this.data.questions.map((q, index) => ({ index, answered: answers[q.id] !== undefined, wrong: answers[q.id] !== undefined && answers[q.id] !== q.correct })) })
   },
   onChoose(event: WechatMiniprogram.BaseEvent) {
     if (!this.data.question || this.data.submitting) return
-    try { store.answer(this.data.taskId, this.data.question.id, Number(event.currentTarget.dataset.index)); this.setData({ error: '' }); this.refresh() }
+    try {
+      const index = Number(event.currentTarget.dataset.index)
+      store.answer(this.data.taskId, this.data.question.id, index)
+      if (index !== this.data.question.correct) wx.showToast({ title: '回答错误，可返回修改', icon: 'none', duration: 1800 })
+      this.setData({ current: Math.min(this.data.current + 1, this.data.questions.length - 1), error: '' })
+      this.refresh()
+    }
     catch (error) { showError(error); this.tick() }
   },
   onJump(event: WechatMiniprogram.BaseEvent) { this.setData({ current: Number(event.currentTarget.dataset.index), error: '' }); this.refresh() },

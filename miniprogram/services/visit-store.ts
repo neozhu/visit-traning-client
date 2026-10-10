@@ -57,6 +57,30 @@ function relevantRoster<T extends Draft>(draft: T): T {
   return { ...draft, people: draft.type === 'logistics' ? [] : draft.people, vehicles: draft.type === 'logistics' ? draft.vehicles : [] }
 }
 
+const requiredPlans = (visit: Visit) => visit.type === 'training' && visit.areaIds.length
+  ? visit.areaIds : matchPlans(visit.type, visit.areaIds)
+
+function updateLegacyQuestions(raw: unknown): unknown {
+  if (!object(raw) || typeof raw.planId !== 'string') return raw
+  try {
+    const plan = getPlan(raw.planId)
+    const retired = (id: string) => [6, 7, 8, 9, 10].some(index => id === `${plan.id}-q${index}`)
+    const values = [raw.attempt, raw.lastResult].filter(object)
+    if (!values.some(v => (object(v.answers) && Object.keys(v.answers).some(retired))
+      || (Array.isArray(v.wrongIds) && v.wrongIds.some(retired)))) return raw
+    const task = clone(raw) as unknown as TrainingTask
+    const current = (answers: Record<string, number>) => Object.fromEntries(Object.entries(answers).filter(([id]) => !retired(id)))
+    if (task.attempt && object(task.attempt.answers)) task.attempt.answers = current(task.attempt.answers)
+    if (task.lastResult && object(task.lastResult.answers) && Array.isArray(task.lastResult.wrongIds)
+      && task.lastResult.wrongIds.every(id => retired(id) || plan.questions.some(q => q.id === id))) {
+      task.lastResult = { ...task.lastResult, ...gradeExam(plan.questions, current(task.lastResult.answers)),
+        submittedAt: task.lastResult.submittedAt, timedOut: task.lastResult.timedOut }
+      if (!task.lastResult.passed) delete task.completedAt
+    }
+    return task
+  } catch (_) { return raw }
+}
+
 function load(storage: StoragePort): State {
   try {
     const value = storage.read(STORAGE_KEY)
@@ -66,9 +90,9 @@ function load(storage: StoragePort): State {
       if (validDraft(draft) && draft.type === type) next.drafts[draft.type] = relevantRoster(clone(draft))
     }
     next.visits = value.visits.filter((v): v is Visit => validDraft(v) && number((v as Visit).createdAt) && !validateDraft(v)).map(v => relevantRoster(clone(v)))
-    value.tasks.filter(validTask).forEach(raw => {
+    value.tasks.map(updateLegacyQuestions).filter(validTask).forEach(raw => {
       const visit = next.visits.find(v => v.id === raw.visitId)
-      if (!visit || !matchPlans(visit.type, visit.areaIds).includes(raw.planId)) return
+      if (!visit || !requiredPlans(visit).includes(raw.planId)) return
       const task = clone(raw)
       const index = next.tasks.findIndex(t => t.visitId === task.visitId && t.planId === task.planId)
       if (index < 0) { next.tasks.push(task); return }
@@ -79,6 +103,11 @@ function load(storage: StoragePort): State {
       selected.completedLessonIds = [...new Set([...previous.completedLessonIds, ...task.completedLessonIds])]
       next.tasks[index] = selected
     })
+    next.visits.forEach(visit => requiredPlans(visit).forEach(planId => {
+      if (!next.tasks.some(t => t.visitId === visit.id && t.planId === planId)) {
+        next.tasks.push({ id: makeId('task'), visitId: visit.id, planId, createdAt: visit.createdAt, completedLessonIds: [] })
+      }
+    }))
     return next
   } catch (_) { /* An unreadable cache should not prevent opening the demo. */ }
   return empty()
@@ -113,7 +142,7 @@ export function createVisitStore(storage: StoragePort, clock: () => number = Dat
       const issue = validateDraft(draft)
       if (issue) throw new Error(issue)
       return mutate(next => {
-        const visit: Visit = relevantRoster({ ...clone(draft), areaIds: [...new Set(draft.areaIds)], createdAt: clock() })
+        const visit: Visit = relevantRoster({ ...clone(draft), areaIds: draft.type === 'training' ? [] : [...new Set(draft.areaIds)], createdAt: clock() })
         visit.vehicles.forEach(v => { v.plate = normalizePlate(v.plate) })
         next.visits.unshift(visit)
         matchPlans(visit.type, visit.areaIds).forEach(planId => {
