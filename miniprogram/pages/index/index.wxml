@@ -1,27 +1,24 @@
-<!--index.wxml-->
-<scroll-view class="scrollarea" scroll-y type="list">
-  <view class="container">
-    <view class="userinfo">
-      <block wx:if="{{canIUseNicknameComp && !hasUserInfo}}">
-        <button class="avatar-wrapper" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
-          <image class="avatar" src="{{userInfo.avatarUrl}}"></image>
-        </button>
-        <view class="nickname-wrapper">
-          <text class="nickname-label">昵称</text>
-          <input type="nickname" class="nickname-input" placeholder="请输入昵称" bind:change="onInputChange" />
-        </view>
-      </block>
-      <block wx:elif="{{!hasUserInfo}}">
-        <button wx:if="{{canIUseGetUserProfile}}" bindtap="getUserProfile"> 获取头像昵称 </button>
-        <view wx:else> 请使用2.10.4及以上版本基础库 </view>
-      </block>
-      <block wx:else>
-        <image bindtap="bindViewTap" class="userinfo-avatar" src="{{userInfo.avatarUrl}}" mode="cover"></image>
-        <text class="userinfo-nickname">{{userInfo.nickName}}</text>
-      </block>
+<view class="home">
+  <view class="hero">
+    <image class="factory-scene" src="/assets/campus.svg" mode="aspectFill" aria-hidden="true" />
+    <view class="hero-content">
+      <view class="hero-label">VISITOR SAFETY · TRAINING</view>
+      <view class="brand">VisitSafe<view class="brand-dot"></view></view>
+      <view class="hero-title">安全到访，从这里开始。</view>
+      <view class="hero-note">访客安全管理与培训</view>
     </view>
-    <view class="usermotto">
-      <text class="user-motto">{{motto}}</text>
-    </view>
+    <view class="site-badge"><view class="live-dot"></view>示例制造园区 · Demo</view>
   </view>
-</scroll-view>
+  <view class="home-content">
+    <view class="row between home-heading"><text class="section-title">请选择您的到访身份</text><text class="small muted">四种入口 · 一站完成</text></view>
+    <view class="entry-list">
+      <button wx:for="{{entries}}" wx:key="type" class="entry {{item.type}}" data-type="{{item.type}}" bindtap="onEntry" hover-class="press">
+        <view class="entry-icon"><image src="/assets/{{item.icon}}-white.svg" aria-hidden="true" /></view>
+        <view class="grow"><view class="entry-title">{{item.title}}</view><view class="entry-description">{{item.description}}</view></view>
+        <view class="entry-arrow">›</view>
+      </button>
+    </view>
+    <button wx:if="{{pendingCount}}" class="resume" bindtap="onResume" hover-class="press"><view class="grow"><view class="resume-title">继续未完成的培训</view><view class="small muted">您还有 {{pendingCount}} 项任务待完成</view></view><text class="chevron">›</text></button>
+    <view class="home-assurance"><image src="/assets/shield.svg" aria-hidden="true" /><text>规范登记 · 安全学习 · 放心到访</text></view>
+  </view>
+</view>

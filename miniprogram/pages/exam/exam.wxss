@@ -1,0 +1,11 @@
+.question-position { font-size: 38rpx; font-weight: 700; color: var(--primary); }
+.timer { margin-left: 10rpx; color: var(--primary); font-weight: 600; }.timer.urgent { color: var(--red); }
+.exam-progress { height: 6rpx; background: #dfe7f3; border-radius: 8rpx; overflow: hidden; }.exam-progress view { height: 100%; background: var(--primary); }
+.question-title { font-size: 34rpx; font-weight: 650; line-height: 1.6; min-height: 90rpx; }
+button.option { width: 100% !important; display: flex; align-items: center; gap: 20rpx; text-align: left; background: white; border: 2rpx solid var(--border); min-height: 104rpx; padding: 22rpx 24rpx; font-weight: 400; font-size: 29rpx; }
+.option.selected { background: #edf3ff; border-color: #94b9fb; }.radio-circle { width: 34rpx; height: 34rpx; border: 2rpx solid #b8c5d9; border-radius: 50%; color: var(--primary); text-align: center; line-height: 30rpx; font-size: 25rpx; flex-shrink: 0; }
+.option.selected .radio-circle { border-color: var(--primary); }
+.answer-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 12rpx; margin-top: 16rpx; }
+button.answer-chip { width: 100% !important; height: 88rpx; padding: 0; background: white; border: 2rpx solid var(--border); line-height: 84rpx; font-size: 28rpx; color: var(--muted); }
+.answer-chip.answered { background: #edf3ff; color: var(--primary); }.answer-chip.current { border-color: var(--primary); border-width: 3rpx; }
+.submit-exam { margin: 8rpx auto 0; }

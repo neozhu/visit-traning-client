@@ -1,0 +1,51 @@
+<view class="page with-footer">
+  <view class="steps">
+    <view class="step {{step === 1 ? 'current' : ''}} {{step > 1 ? 'done' : ''}}"><view class="step-number">{{step > 1 ? '✓' : '1'}}</view><text>{{type === 'logistics' ? '车辆信息' : '人员信息'}}</text></view>
+    <view class="step-line {{step > 1 ? 'done' : ''}}"></view>
+    <view class="step {{step === 2 ? 'current' : ''}} {{step > 2 ? 'done' : ''}}"><view class="step-number">{{step > 2 ? '✓' : '2'}}</view><text>访问区域</text></view>
+    <view class="step-line {{step > 2 ? 'done' : ''}}"></view>
+    <view class="step {{step === 3 ? 'current' : ''}}"><view class="step-number">3</view><text>确认提交</text></view>
+  </view>
+  <block wx:if="{{step === 1}}">
+    <view class="row between section"><text class="section-title">{{type === 'logistics' ? '车辆列表' : (type === 'contractor' ? '施工人员' : '来访人员')}}（{{rows.length}}）</text><button class="text-button add-entry" bindtap="onAdd" hover-class="press">＋ 添加{{type === 'logistics' ? '车辆' : '人员'}}</button></view>
+    <view class="stack">
+      <view wx:for="{{rows}}" wx:key="id" class="card roster-card">
+        <view class="row"><view class="list-number">{{index + 1}}</view><view class="grow"><view class="person-name">{{item.name}}</view><view class="muted">{{item.extra ? item.extra + ' · ' : ''}}{{item.phone}}</view><view class="muted">{{type === 'logistics' ? '运输单位' : '所属单位'}}：{{item.company}}</view></view></view>
+        <view class="row entry-actions"><button class="text-button edit-entry" data-id="{{item.id}}" bindtap="onEdit">编辑</button><button class="text-button danger delete-entry" data-id="{{item.id}}" bindtap="onDelete">删除</button></view>
+      </view>
+      <view wx:if="{{!rows.length}}" class="card empty"><image src="/assets/{{type === 'logistics' ? 'truck' : 'user'}}.svg" aria-hidden="true" /><view class="section-title">添加第一位{{type === 'logistics' ? '司机及车辆' : '到访人员'}}</view><view class="subtitle">可以登记多人或多辆车辆，培训按申请单统一完成。</view><button class="primary" bindtap="onAdd" hover-class="press">开始添加</button></view>
+    </view>
+    <button class="text-button demo-data" bindtap="onDemoData" hover-class="press">填入两条演示数据</button>
+    <view class="muted small center">示例姓名、手机号与单位仅用于本地演示。</view>
+  </block>
+  <block wx:elif="{{step === 2}}">
+    <view class="section-title section">请选择访问区域</view><view class="subtitle">可多选，将自动匹配所需的安全培训。</view>
+    <view class="stack section">
+      <button wx:for="{{areas}}" wx:key="id" class="area-card card {{item.selected ? 'selected' : ''}}" data-id="{{item.id}}" bindtap="onArea" hover-class="press" aria-label="{{item.name}}{{item.selected ? '，已选择' : '，未选择'}}">
+        <view class="area-illustration {{item.color}}"><image src="/assets/{{item.icon}}.svg" aria-hidden="true" /></view><view class="grow"><view class="section-title">{{item.name}}</view><view class="muted">{{item.subtitle}}</view><view class="area-caption">{{item.caption}}</view></view><view class="check {{item.selected ? 'checked' : ''}}">{{item.selected ? '✓' : ''}}</view>
+      </button>
+    </view>
+    <view wx:if="{{taskCount}}" class="info-banner">已选择 {{selectedAreas}} · 将生成 {{taskCount}} 项培训任务</view>
+  </block>
+  <block wx:else>
+    <view class="eyebrow section">READY TO VISIT</view><view class="title">请确认登记信息</view><view class="subtitle">提交后，完成本申请单匹配的培训即可。</view>
+    <view class="card section"><view class="row between"><text class="muted">登记类型</text><text>{{title}}</text></view><view class="divider"></view><view class="row between"><text class="muted">{{type === 'logistics' ? '车辆数量' : '到访人数'}}</text><text>{{rows.length}} {{type === 'logistics' ? '辆' : '人'}}</text></view><view class="divider"></view><view class="row between"><text class="muted">访问区域</text><text>{{selectedAreas}}</text></view></view>
+    <view class="section-title section">人员与车辆</view><view class="wrap section"><text wx:for="{{rows}}" wx:key="id" class="pill">{{item.name}}</text></view>
+    <view class="section-title section">匹配的培训方案</view><view class="card section"><view wx:for="{{planTitles}}" wx:key="*this" class="plan-line"><text class="plan-tick">✓</text><text>{{item}}</text></view><view class="divider"></view><view class="muted">共 {{taskCount}} 项任务 · 每项 10 道题 · 80 分通过</view></view>
+  </block>
+  <view wx:if="{{error && !editorOpen}}" class="error-banner">{{error}}</view>
+</view>
+<view class="footer"><view class="footer-inner"><button class="secondary previous" bindtap="onPrevious" hover-class="press">{{step === 1 ? '返回' : '上一步'}}</button><button wx:if="{{step !== 3}}" class="primary next" bindtap="onNext" hover-class="press">下一步</button><button wx:else class="primary submit-visit" bindtap="onSubmit" loading="{{submitting}}" disabled="{{submitting}}" hover-class="press">提交并开始培训</button></view></view>
+<view wx:if="{{noticeOpen}}" class="overlay" catchtouchmove="noop">
+  <view class="notice-modal"><image class="notice-shield" src="/assets/shield.svg" aria-hidden="true" /><view class="notice-title">访客须知</view><view class="notice-subtitle">共同守护每一次安全到访</view><view class="notice-copy"><view>1. 请如实填写到访人员及车辆信息。</view><view>2. 进入厂区需遵守公司安全管理规定。</view><view>3. 完成所选区域安全培训并通过考试。</view><view>4. 携带访客凭证，听从现场管理人员安排。</view></view><checkbox-group bindchange="onNoticeCheck"><label class="notice-agree"><checkbox value="accepted" checked="{{noticeChecked}}" color="#1768ee" /><text>我已阅读并同意以上须知内容</text></label></checkbox-group><button class="primary accept-notice" disabled="{{!noticeChecked}}" bindtap="onAccept" hover-class="press">确认并继续</button><button class="text-button" bindtap="onCancelNotice">暂不登记</button></view>
+</view>
+<view wx:if="{{editorOpen}}" class="overlay editor-overlay">
+  <view class="editor-sheet"><view class="row between editor-header"><view class="section-title">{{editId ? '编辑' : '添加'}}{{type === 'logistics' ? '车辆' : '人员'}}</view><button class="close-editor" bindtap="onCloseEditor" aria-label="取消编辑并关闭弹窗" hover-class="press"><view class="close-icon" aria-hidden="true"></view></button></view><scroll-view scroll-y class="editor-scroll">
+    <label wx:if="{{type === 'logistics'}}" class="field"><text class="field-label">车牌号 *</text><input value="{{form.plate}}" data-field="plate" bindinput="onInput" placeholder="例如：粤B12345" maxlength="10" aria-label="车牌号" /></label>
+    <label class="field"><text class="field-label">{{type === 'logistics' ? '司机姓名' : '姓名'}} *</text><input value="{{type === 'logistics' ? form.driver : form.name}}" data-field="{{type === 'logistics' ? 'driver' : 'name'}}" bindinput="onInput" placeholder="请输入真实姓名" maxlength="30" aria-label="姓名" /></label>
+    <label class="field"><text class="field-label">手机号码 *</text><input type="number" value="{{form.phone}}" data-field="phone" bindinput="onInput" placeholder="请输入11位手机号码" maxlength="11" aria-label="手机号码" /></label>
+    <label class="field"><text class="field-label">{{type === 'logistics' ? '运输单位' : '所属单位'}} *</text><input value="{{form.company}}" data-field="company" bindinput="onInput" placeholder="请输入单位名称" maxlength="60" aria-label="单位名称" /></label>
+    <label wx:if="{{type === 'contractor'}}" class="field"><text class="field-label">工种 *</text><input value="{{form.trade}}" data-field="trade" bindinput="onInput" placeholder="例如：电工、焊工" maxlength="30" aria-label="工种" /></label>
+    <view wx:if="{{error}}" class="error-banner">{{error}}</view><view class="sheet-bottom-space"></view>
+  </scroll-view><button class="primary save-entry" bindtap="onSaveEntry" hover-class="press">保存{{type === 'logistics' ? '车辆' : '人员'}}</button></view>
+</view>

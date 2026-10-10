@@ -1,8 +1,11 @@
 {
-  "name": "miniprogram-ts-quickstart",
+  "name": "visitsafe-demo",
   "version": "1.0.0",
-  "description": "",
+  "description": "VisitSafe native WeChat Mini Program demo",
   "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "smoke": "node scripts/smoke.cjs"
   },
   "keywords": [],
   "author": "",
@@ -10,6 +13,8 @@
   "dependencies": {
   },
   "devDependencies": {
-    "miniprogram-api-typings": "^2.8.3-1"
+    "miniprogram-api-typings": "^2.8.3-1",
+    "typescript": "^5.9.3",
+    "tsx": "^4.20.6"
   }
 }

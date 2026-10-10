@@ -1,62 +1,28 @@
-/**index.wxss**/
-page {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-.scrollarea {
-  flex: 1;
-  overflow-y: hidden;
-}
-
-.userinfo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #aaa;
-  width: 80%;
-}
-
-.userinfo-avatar {
-  overflow: hidden;
-  width: 128rpx;
-  height: 128rpx;
-  margin: 20rpx;
-  border-radius: 50%;
-}
-
-.usermotto {
-  margin-top: 200px;
-}
-
-.avatar-wrapper {
-  padding: 0;
-  width: 56px !important;
-  border-radius: 8px;
-  margin-top: 40px;
-  margin-bottom: 40px;
-}
-
-.avatar {
-  display: block;
-  width: 56px;
-  height: 56px;
-}
-
-.nickname-wrapper {
-  display: flex;
-  width: 100%;
-  padding: 16px;
-  box-sizing: border-box;
-  border-top: .5px solid rgba(0, 0, 0, 0.1);
-  border-bottom: .5px solid rgba(0, 0, 0, 0.1);
-  color: black;
-}
-
-.nickname-label {
-  width: 105px;
-}
-
-.nickname-input {
-  flex: 1;
-}
+.hero { height: 420rpx; position: relative; overflow: hidden; background: #e5f1ff; }
+.factory-scene { position: absolute; width: 100%; height: 100%; }
+.hero-content { position: relative; padding: 36rpx 40rpx; }
+.hero-label { font-size: 18rpx; letter-spacing: 3rpx; color: #406188; font-weight: 600; }
+.brand { font-size: 70rpx; letter-spacing: -3rpx; font-weight: 800; line-height: 1.2; margin-top: 20rpx; display: flex; align-items: baseline; }
+.brand-dot { background: #1768ee; border-radius: 50%; width: 12rpx; height: 12rpx; margin-left: 8rpx; }
+.hero-title { font-size: 30rpx; font-weight: 600; margin-top: 12rpx; }
+.hero-note { color: #4b6580; font-size: 22rpx; margin-top: 8rpx; }
+.site-badge { position: absolute; left: 40rpx; bottom: 22rpx; display: flex; align-items: center; gap: 10rpx; padding: 8rpx 18rpx; background: rgba(255,255,255,.95); border-radius: 30rpx; font-size: 21rpx; color: #325676; }
+.live-dot { width: 10rpx; height: 10rpx; background: #1d9654; border-radius: 50%; }
+.home-content { padding: 28rpx 0 30rpx; max-width: 1100rpx; margin: 0 24rpx; }
+.home-heading { margin-bottom: 24rpx; }
+.home-heading .small { font-size: 21rpx; }
+.entry-list { display: flex; flex-direction: column; gap: 18rpx; width: 100%; }
+button.entry { display: flex; align-items: center; gap: 24rpx; padding: 22rpx 28rpx; width: 100% !important; max-width: none; margin: 0 !important; align-self: stretch; min-height: 132rpx; text-align: left; color: white; border-radius: 24rpx; box-shadow: 0 8rpx 20rpx rgba(22,63,119,.09); }
+.entry.training { background: linear-gradient(110deg,#186cf3,#287ff5); }
+.entry.visitor { background: linear-gradient(110deg,#16874a,#209854); }
+.entry.logistics { background: linear-gradient(110deg,#ae520b,#c26413); }
+.entry.contractor { background: linear-gradient(110deg,#7150db,#8462e3); }
+.entry-icon { width: 78rpx; height: 78rpx; background: rgba(255,255,255,.14); border: 1rpx solid rgba(255,255,255,.18); border-radius: 24rpx; display: flex; align-items: center; justify-content: center; }
+.entry-icon image { width: 46rpx; height: 46rpx; }
+.entry-title { font-size: 36rpx; font-weight: 650; }
+.entry-description { font-size: 22rpx; font-weight: 400; margin-top: 6rpx; }
+.entry-arrow { font-size: 50rpx; font-weight: 200; opacity: .8; }
+.home-assurance { margin-top: 32rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; color: #65748a; font-size: 22rpx; }
+.home-assurance image { width: 28rpx; height: 28rpx; }
+.resume { margin-top: 24rpx; display: flex; align-items: center; text-align: left; padding: 20rpx 24rpx; background: #edf3ff; border: 1rpx solid #cfdef8; }
+.resume-title { color: #245ba5; font-size: 28rpx; font-weight: 600; }

@@ -1,0 +1,11 @@
+<view class="page with-footer">
+  <block wx:if="{{result}}">
+    <view class="result-hero"><view class="result-mark {{result.passed ? 'passed' : 'failed'}}">{{result.passed ? '✓' : '!'}}</view><view class="result-title {{result.passed ? 'passed-text' : 'failed-text'}}">{{result.passed ? '恭喜您，通过考试！' : '暂未通过，再接再厉'}}</view><view class="subtitle">{{title}}</view><view wx:if="{{result.timedOut}}" class="status red section">考试时间已到，已自动交卷</view></view>
+    <view class="card score-card"><view class="row score-row"><view class="grow"><view class="muted">本次成绩</view><view class="score">{{result.score}}<text>分</text></view></view><view class="score-divider"></view><view class="grow"><view class="muted">及格分数</view><view class="pass-score">80<text>分</text></view></view></view><view class="answer-summary row between"><text>答对 <text class="green">{{correctCount}}</text> 题</text><text>答错 <text class="red-text">{{result.wrongIds.length}}</text> 题</text></view></view>
+    <view wx:if="{{!result.passed}}" class="info-banner">已完成的视频会保留，重新考试会清空答案并重新计时。</view>
+    <button wx:if="{{wrong.length}}" class="secondary section wrong-review" bindtap="onWrong">{{showWrong ? '收起错题' : '查看错题与解析'}}</button><view wx:else class="info-banner">全部答对！请在到访期间持续遵守安全规定。</view>
+    <view wx:if="{{showWrong}}" class="stack section"><view wx:for="{{wrong}}" wx:key="id" class="card"><view class="section-title">{{index + 1}}. {{item.title}}</view><view class="wrong-answer">您的答案：{{item.chosen}}</view><view class="right-answer">正确答案：{{item.correct}}</view><view class="divider"></view><view class="muted">{{item.explanation}}</view></view></view>
+  </block>
+  <view wx:else class="card empty"><view class="section-title">暂无考试结果</view><view class="subtitle">完成视频学习与在线考试后查看成绩。</view><button class="primary" bindtap="onTasks">返回任务列表</button></view>
+</view>
+<view wx:if="{{result}}" class="footer"><view class="footer-inner"><button class="secondary" bindtap="onTasks">任务列表</button><button wx:if="{{result.passed}}" class="primary complete-training" bindtap="onComplete">完成培训</button><button wx:else class="primary retry-exam" bindtap="onRetry">重新考试</button></view></view>

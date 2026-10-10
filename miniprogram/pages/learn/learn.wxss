@@ -1,0 +1,5 @@
+.lesson-video { width: 100%; height: 370rpx; border-radius: 20rpx; background: #142b47; }
+.lesson-caption { margin-top: 16rpx; }.lesson-description { font-size: 28rpx; line-height: 1.8; }
+.lesson-row { width: 100%; text-align: left; padding: 22rpx; font-size: 28rpx; font-weight: 400; }.lesson-row.selected { background: #edf3ff; border-color: #a9c5fa; }
+.lesson-number { width: 56rpx; height: 56rpx; line-height: 54rpx; border: 2rpx solid #c6d4e9; border-radius: 50%; text-align: center; color: var(--primary); }
+.lesson-check { color: #8190a5; font-size: 34rpx; }.lesson-check.done { color: var(--green); font-weight: 600; }
