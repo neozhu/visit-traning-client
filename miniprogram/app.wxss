@@ -55,7 +55,8 @@ button[disabled] { background: #d9e1ed !important; color: #566477 !important; bo
 .segment button { flex: 1; background: transparent; padding: 24rpx 0; color: var(--muted); border-radius: 0; font-size: 28rpx; border-bottom: 4rpx solid transparent; }
 .segment button.selected { color: var(--primary); border-color: var(--primary); font-weight: 600; }
 .avatar { width: 80rpx; height: 80rpx; background: #eaf1ff; color: #205bbe; font-size: 32rpx; font-weight: 600; border-radius: 24rpx; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
-.chevron { font-size: 44rpx; color: #8b97aa; font-weight: 300; }
+.chevron { width: 32rpx; height: 32rpx; flex-shrink: 0; }
+.inline-icon { width: 28rpx; height: 28rpx; margin-right: 12rpx; vertical-align: -4rpx; }
 .metric { font-size: 52rpx; font-weight: 700; line-height: 1.2; }
 .center { text-align: center; }
 .wrap { display: flex; flex-wrap: wrap; gap: 12rpx; }

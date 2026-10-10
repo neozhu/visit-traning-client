@@ -5,7 +5,7 @@
     <button wx:for="{{tasks}}" wx:key="id" class="card training-card" data-id="{{item.id}}" bindtap="onTask" hover-class="press">
       <view class="row"><view class="icon-box"><image class="icon" src="/assets/{{item.icon}}.svg" aria-hidden="true" /></view><view class="grow"><view class="section-title">{{item.title}}</view><view class="muted small">{{item.subtitle}}</view></view></view>
       <view class="divider"></view><view class="row between"><view><view class="muted small">{{item.lessonCount}} 个视频 · {{item.questionCount}} 道题</view><view class="muted small">已观看 {{item.done}} / {{item.lessonCount}}{{item.lastResult ? ' · 上次 ' + item.lastResult.score + ' 分' : ''}}</view></view><text class="status {{item.passed ? 'complete' : 'active'}}">{{item.status}}</text></view>
-      <view class="task-action">{{item.action}} <text>→</text></view>
+      <view class="task-action">{{item.action}} <image class="chevron" src="/assets/arrow-right.svg" aria-hidden="true" /></view>
     </button>
   </view>
   <view wx:if="{{!total}}" class="card empty section"><image src="/assets/book.svg" aria-hidden="true" /><view class="section-title">{{missing ? '登记记录已不存在' : '暂无培训任务'}}</view><view class="subtitle">返回首页登记，或在我的记录中查看培训。</view></view>

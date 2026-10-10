@@ -2,12 +2,26 @@
 
 原生 TypeScript + WXML + WXSS 实现。使用本地数据和 Storage，不依赖后端、云服务或网络视频。
 
+## 业务流程
+
+![VisitSafe 业务流程](doc/VisitSafe-flow.png)
+
+## 系统架构
+
+![VisitSafe 系统架构](doc/VisitSafe-architecture.png)
+
 ## 运行
 
 1. 安装 Node.js（本次验证使用 24.18.1），在仓库根目录执行 `npm install`。
 2. 在微信开发者工具中导入本仓库根目录。`project.config.json` 已设置 `miniprogramRoot: "miniprogram/"` 和 TypeScript 编译插件。
 3. 使用自己的有效小程序 AppID，或开发者工具提供的测试号；点击“编译”。首页有学习培训、普通访客、物流车辆、施工人员四个入口。
 4. 本项目没有运行时 npm 包，不需要点击“构建 npm”。通过“预览”可在手机上检查布局和视频兼容性。
+
+## 图标
+
+使用 [Lucide](https://lucide.dev/) 线性图标，按需下载到 `miniprogram/assets/`，页面直接通过 `image` 引用本地 SVG。底栏使用同一套图标导出的透明 PNG，不需要安装运行时图标库或“构建 npm”。
+
+图标来源固定为 [Lucide 源码版本 70562c1](https://github.com/lucide-icons/lucide/tree/70562c1ee1c4fdcf736fe97bc893fb8511927934/icons)，保留原始 24×24 网格和 2px 线宽，仅调整颜色。`book`、`flask`、`helmet`、`shield`、`user`、`home` 分别对应官方 `book-open`、`flask-conical`、`hard-hat`、`shield-check`、`user-round`、`house`；`chevron`、`close`、`alert` 分别对应 `chevron-right`、`x`、`triangle-alert`。`-white`、`check-green` 和底栏 `-active` 文件为颜色变体。完整开源许可（含部分源自 Feather 的图标许可）见 [LUCIDE-LICENSE.txt](miniprogram/assets/LUCIDE-LICENSE.txt)。
 
 ## 演示流程
 

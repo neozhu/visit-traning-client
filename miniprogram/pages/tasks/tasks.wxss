@@ -1,4 +1,4 @@
 .task-summary { font-size: 26rpx; color: var(--muted); }.task-summary text { font-size: 46rpx; font-weight: 700; color: var(--primary); }
 .progress-track { height: 12rpx; background: #dfe7f3; border-radius: 12rpx; overflow: hidden; }.progress-fill { height: 100%; background: var(--primary); border-radius: 12rpx; }.progress-caption { text-align: right; margin-top: 10rpx; }
 .training-card { text-align: left; width: 100%; }.training-card .section-title { font-size: 29rpx; }
-.task-action { display: flex; justify-content: space-between; color: var(--primary); font-size: 27rpx; font-weight: 600; border-top: 1rpx solid var(--border); padding-top: 22rpx; margin-top: 24rpx; }
+.task-action { display: flex; align-items: center; justify-content: space-between; color: var(--primary); font-size: 27rpx; font-weight: 600; border-top: 1rpx solid var(--border); padding-top: 22rpx; margin-top: 24rpx; }
