@@ -1,0 +1,13 @@
+<button wx:if="{{!keyboardOnly}}" class="plate-field {{invalid ? 'invalid' : ''}}" bindtap="onOpen" hover-class="press" aria-label="{{label}}，{{plate || '未填写'}}，点击输入">
+  <text class="{{plate ? '' : 'plate-placeholder'}}">{{plate || '请输入车牌号'}}</text>
+</button>
+<view wx:if="{{open}}" class="plate-overlay" catchtap="onClose" catchtouchmove="noop">
+  <view class="plate-sheet" catchtap="noop" role="dialog" aria-label="车牌输入键盘">
+    <view class="sheet-heading"><text class="sheet-title">{{label}}</text><button class="close-keyboard" bindtap="onClose" hover-class="press" aria-label="关闭车牌键盘"><image class="keyboard-close-icon" src="/assets/close.svg" aria-hidden="true" /></button></view>
+    <view class="plate-slots"><button wx:for="{{slots}}" wx:key="index" class="plate-slot {{activeIndex === index ? 'active' : ''}}" data-index="{{index}}" bindtap="onSelectSlot" hover-class="press" aria-label="第{{index + 1}}位，{{item || '未填写'}}">{{item}}</button></view>
+    <view class="keyboard-hint">{{activeIndex === 0 ? '请选择车牌省份简称' : (activeIndex === 1 ? '请选择车牌第二位字母' : '请选择字母或数字，点击上方格子可修改')}}</view>
+    <view wx:if="{{message}}" class="keyboard-error">{{message}}</view>
+    <view class="keyboard-keys"><button wx:for="{{activeIndex === 0 ? provinces : characters}}" wx:key="*this" class="plate-key {{activeIndex === 1 && index < 10 ? 'key-disabled' : ''}}" data-key="{{item}}" disabled="{{activeIndex === 1 && index < 10}}" bindtap="onKey" hover-class="key-press" aria-label="{{item}}">{{item}}</button></view>
+    <view class="keyboard-actions"><button class="clear-plate" bindtap="onClear" hover-class="press">清空</button><button class="delete-key" bindtap="onDelete" hover-class="press" aria-label="删除一位车牌字符">删除</button><button class="done-key {{complete ? '' : 'key-disabled'}}" bindtap="onDone" disabled="{{!complete}}" hover-class="press">完成</button></view>
+  </view>
+</view>

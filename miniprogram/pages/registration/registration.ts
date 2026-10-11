@@ -11,6 +11,7 @@ Page({
     draft: {} as Draft, rows: [] as Array<{ id: string; name: string; phone: string; company: string; extra: string }>,
     areas: AREAS.map(a => ({ ...a, selected: false })), selectedAreas: '', planTitles: [] as string[], taskCount: 0,
     editorOpen: false, editId: '', form: emptyForm(), error: '', submitting: false,
+    accompanyingKeyboardOpen: false, accompanyingEditId: '', accompanyingPlate: '', accompanyingError: '',
     today: calendarDate(), timeSlots: TIME_SLOTS, visitReasons: VISIT_REASONS,
     timeSlotIndex: -1, reasonIndex: -1, infoErrors: {} as Record<string, string>, infoSections: [] as ReturnType<typeof getRegistrationSections>,
     constructionFields: [
@@ -79,13 +80,31 @@ Page({
   },
   onAddAccompanyingVehicle() {
     if (this.data.type === 'logistics') return
-    try { this.persist({ ...this.data.draft, accompanyingVehicles: [...this.data.draft.accompanyingVehicles || [], { id: makeId('accompanying'), plate: '' }] }) }
-    catch (error) { showError(error) }
+    this.setData({ accompanyingKeyboardOpen: true, accompanyingEditId: '', accompanyingPlate: '', accompanyingError: '' })
   },
-  onAccompanyingInput(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+  onEditAccompanyingVehicle(event: WechatMiniprogram.BaseEvent) {
     const id = event.currentTarget.dataset.id as string
-    const accompanyingVehicles = (this.data.draft.accompanyingVehicles || []).map(v => v.id === id ? { ...v, plate: event.detail.value } : v)
-    try { this.persist({ ...this.data.draft, accompanyingVehicles }) } catch (error) { showError(error) }
+    const vehicle = this.data.draft.accompanyingVehicles?.find(v => v.id === id)
+    if (vehicle) this.setData({ accompanyingKeyboardOpen: true, accompanyingEditId: id, accompanyingPlate: vehicle.plate, accompanyingError: '' })
+  },
+  onCancelAccompanyingVehicle() {
+    this.setData({ accompanyingKeyboardOpen: false, accompanyingEditId: '', accompanyingPlate: '', accompanyingError: '' })
+  },
+  onSaveAccompanyingVehicle(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    if (!this.data.accompanyingKeyboardOpen || this.data.type === 'logistics') return
+    const plate = normalizePlate(event.detail.value)
+    if (!/^[\u4e00-\u9fa5][A-Z][A-Z0-9]{5,6}$/.test(plate)) {
+      this.setData({ accompanyingError: '请输入有效车牌，如粤B12345' }); return
+    }
+    const vehicles = this.data.draft.accompanyingVehicles || []
+    const id = this.data.accompanyingEditId
+    if (vehicles.some(v => v.id !== id && normalizePlate(v.plate) === plate)) {
+      this.setData({ accompanyingError: '车牌重复，请检查随行车辆' }); return
+    }
+    const accompanyingVehicles = id ? vehicles.map(v => v.id === id ? { ...v, plate } : v)
+      : [...vehicles, { id: makeId('accompanying'), plate }]
+    try { this.persist({ ...this.data.draft, accompanyingVehicles }); this.onCancelAccompanyingVehicle() }
+    catch (error) { showError(error) }
   },
   onDeleteAccompanyingVehicle(event: WechatMiniprogram.BaseEvent) {
     const id = event.currentTarget.dataset.id as string

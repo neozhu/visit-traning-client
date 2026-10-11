@@ -1,0 +1,27 @@
+:host { display: block; min-width: 0; }
+.close-keyboard, .plate-slot, .plate-key, .clear-plate, .delete-key, .done-key { box-sizing: border-box; margin: 0; padding: 0; font-size: 16px; line-height: 1.4; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.close-keyboard::after, .plate-slot::after, .plate-key::after, .clear-plate::after, .delete-key::after, .done-key::after { border: 0; }
+.press { opacity: .78; }
+.plate-field { box-sizing: border-box; display: flex; align-items: center; width: 100% !important; max-width: none; min-height: 94rpx; margin: 0 !important; padding: 18rpx 22rpx; border: 2rpx solid #E1E7F0; border-radius: 14rpx; background: #F4F7FB; color: #192B43; font-size: 30rpx; line-height: 1.5; text-align: left; }
+.plate-field::after { border: 0; }
+.plate-field.invalid { border-color: #CF6A60; }
+.plate-placeholder { color: #7D8CA0; }
+.plate-overlay { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-end; background: rgba(17,30,49,.5); }
+.plate-sheet { box-sizing: border-box; width: 100%; max-width: 600px; margin: 0 auto; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: #F2F5FA; color: #192B43; }
+.sheet-heading { display: flex; align-items: center; justify-content: space-between; }
+.sheet-title { font-size: 17px; font-weight: 600; }
+.close-keyboard { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px !important; height: 44px; margin: 0 !important; padding: 0; background: transparent; }
+.keyboard-close-icon { width: 16px; height: 16px; }
+.plate-slots { display: flex; gap: 5px; }
+.plate-slot { margin: 0 !important; padding: 0; flex: 1; min-width: 0; min-height: 48px; background: white; border: 1px solid #D5DEEB; font-weight: 600; font-size: 20px; color: #192B43; }
+.plate-slot.active { border: 2px solid #246BFD; background: #EAF1FF; color: #205ED4; }
+.keyboard-hint { min-height: 36px; padding: 9px 0; color: #52677F; font-size: 12px; }
+.keyboard-error { color: #B43A32; font-size: 13px; padding-bottom: 8px; }
+.keyboard-keys { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 4px; }
+.plate-key { margin: 0 !important; padding: 0; flex: 0 0 calc(14.2857% - 6px); width: calc(14.2857% - 6px); min-height: 44px; background: white; color: #192B43; box-shadow: 0 1px 0 #CBD5E3; font-size: 19px; }
+.key-press { background: #DCE8FF; }
+.keyboard-actions { display: flex; gap: 8px; margin-top: 12px; }
+.clear-plate, .delete-key { min-height: 44px; flex: 1; background: #E0E7F0; color: #364C65; }
+.done-key { min-height: 44px; flex: 2; background: #246BFD; color: white; font-weight: 600; }
+.key-disabled { background: #D9E1ED; color: #65748A; box-shadow: none; }
+@media (max-height: 640px) { .plate-key { min-height: 40px; } .keyboard-hint { min-height: 30px; padding: 6px 0; } .keyboard-actions { margin-top: 8px; } }

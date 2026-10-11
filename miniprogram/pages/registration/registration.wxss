@@ -67,3 +67,4 @@
 .close-icon { width: 32rpx; height: 32rpx; }
 .editor-scroll { max-height: 62vh; height: 740rpx; }
 .sheet-bottom-space { height: 28rpx; }
+.accompanying-plate { margin: 0 !important; padding: 20rpx 22rpx; min-height: 88rpx; border: 1rpx solid #DCE7F8; border-radius: 8px; background: #F4F8FF; color: #192B43; font-size: 17px; font-weight: 600; letter-spacing: 2rpx; text-align: left; }

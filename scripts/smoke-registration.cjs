@@ -11,6 +11,7 @@ console.log('Storage backup: ' + jsonFile(original))
 const record = message => { report.push(message); console.log('PASS: ' + message) }
 const ready = selector => call('automation_page_action', { action: 'getData', 'wait-for-selector': selector }).data
 const change = (selector, value) => call('automation_element_action', { action: 'trigger', type: 'change', selector, 'wait-for-selector': selector, 'detail-file': jsonFile({ value }) })
+const confirmPlate = value => call('automation_element_action', { action: 'trigger', type: 'confirm', selector: '.accompanying-keyboard', 'detail-file': jsonFile({ value }) })
 const home = () => call('automation_navigate', { action: 'switchTab', url: '/pages/index/index', 'wait-for-selector': '.entry' })
 const scrollTo = selector => evaluate("function(selector){ wx.pageScrollTo({ selector: selector, duration: 0 }); return true; }", [selector])
 const artifactDir = path.join(project, 'doc', 'verification-artifacts')
@@ -54,20 +55,20 @@ try {
     screenshot('registration-' + type + '-top')
     if (type !== 'logistics') {
       tap('.add-accompanying')
-      let vehicles = data().draft.accompanyingVehicles
-      input('input[data-id="' + vehicles[0].id + '"]', '粤b·12345')
+      assert.equal(data().accompanyingKeyboardOpen, true)
+      assert.equal(data().draft.accompanyingVehicles.length, 0)
+      confirmPlate('粤b·12345')
       tap('.add-accompanying')
-      vehicles = data().draft.accompanyingVehicles
-      input('input[data-id="' + vehicles[1].id + '"]', '粤B12345')
-      tap('.next')
-      assert.equal(data().step, 1)
-      assert.match(data().infoErrors['accompanying-' + vehicles[1].id], /重复/)
-      input('input[data-id="' + vehicles[1].id + '"]', '粤B67890')
+      confirmPlate('粤B12345')
+      assert.equal(data().accompanyingKeyboardOpen, true)
+      assert.equal(data().draft.accompanyingVehicles.length, 1)
+      assert.match(data().accompanyingError, /重复/)
+      confirmPlate('粤B67890')
+      const vehicles = data().draft.accompanyingVehicles
       tap('.delete-accompanying[data-id="' + vehicles[1].id + '"]')
       assert.equal(data().draft.accompanyingVehicles.length, 1)
       tap('.add-accompanying')
-      vehicles = data().draft.accompanyingVehicles
-      input('input[data-id="' + vehicles[1].id + '"]', '粤B67890')
+      confirmPlate('粤B67890')
       scrollTo('.accompanying-section')
       screenshot('registration-' + type + '-vehicles')
     }
