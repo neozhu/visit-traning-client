@@ -22,12 +22,12 @@
 - 申请车辆统一归属于申请单，不设置车辆类型字段，不维护司机信息或关联申请人员；保留车牌及运输单位，车辆录入要求由所属申请的类型决定。
 - 第一版每次申请都重新生成个人培训任务，每个人都要重新学习和答题，历史通过结果不抵扣新申请。
 - 提交申请后即进入待审批并生成个人培训任务，业务审批与学习培训并行；待审批期间可以学习、答题及重考。
-- 审批人按访问区域配置。每个所选区域分别生成审批任务，由对应区域负责人处理；所有所选区域审批通过后，整单才变为已批准。
+- 审批同时覆盖登记类型对应的业务负责人和所选访问区域负责人：普通访客由被访人审批，施工人员由现场负责人审批，物流车辆由登记时选择的对接人员审批。每个所选区域还分别生成区域负责人审批任务；业务审批和全部区域审批均通过后，整单才变为已批准。
 - 每位申请人员在本次申请中仅记录一次进厂和一次出厂，时间保存在 VisitorParticipant，人员在厂状态由这两个时间推导，不新增通行记录实体。
 - 学习方式沿用现有前端：同一手机可供多人轮流学习，申请单任务页可选择个人或按全部人员依次学习，各人进度独立。
 - 学习培训入口按姓名＋手机号查找本人未完成任务，多个申请分别展示；查找后只显示匹配人员的课程。
 - 培训人员来自本申请的人员名单，与车辆数量及运输单位无关。
-- 全部人员通过本申请的全部必修课程，表示整单培训完成；进厂前还必须所有所选区域审批通过。申请正常结束以确认出厂为准。
+- 全部人员通过本申请的全部必修课程，表示整单培训完成；进厂前还必须业务审批和所有所选区域审批通过。申请正常结束以确认出厂为准。
 - 失败重考保留本申请、本人的视频完成进度，并产生新的考试记录。
 - 除本轮明确调整的内容外，登记字段、区域匹配、视频学习及答题行为以 [前端 SPEC](VisitSafe-MiniApp-Frontend-SPEC.md) 为依据。
 
@@ -36,10 +36,10 @@
 | 主导航 | 模块职责 | 主要实体或数据来源 |
 | --- | --- | --- |
 | 首页 Dashboard | 展示登记数量、申请状态、人员数量和培训完成情况 | 汇总申请单、申请人员、培训记录和考试记录，不新增统计实体 |
-| 访客管理 | 管理三类申请及其登记信息、各区域审批待办和进出厂状态，查看人员身份证号码及附件资料 | VisitorApplication、VisitorParticipant、VisitorVehicle、VisitorApplicationArea、VisitorApprovalTask；MiniProgramUser 标记提交者 |
+| 访客管理 | 管理三类申请及其登记信息、业务与区域审批待办和进出厂状态，查看人员身份证号码及附件资料 | VisitorApplication、VisitorParticipant、VisitorVehicle、VisitorApplicationArea、VisitorApprovalTask；MiniProgramUser 标记提交者 |
 | 培训管理 | 维护培训方案、视频、PDF 资料、课程题库及区域与方案关联 | TrainingCourse、TrainingVideo、TrainingQuestion、VisitAreaTrainingCourse |
 | 培训记录 | 查看个人课程进度、历次考试、成绩及关联申请 | TrainingRecord、ExamAttempt，关联申请单和人员 |
-| 基础配置 | 维护访问区域、区域审批负责人、三类访客须知；预约时段通过 PicklistSet 维护，申请扩展字段及其下拉选项使用动态模块 | VisitArea、VisitorApprovalConfig、VisitorNotice；复用框架已有 PicklistSet 及动态模块的字段定义、metadata 与模板 |
+| 基础配置 | 维护访问区域、三类业务审批人取值规则、区域审批负责人、三类访客须知；预约时段通过 PicklistSet 维护，申请扩展字段及其下拉选项使用动态模块 | VisitArea、VisitorApprovalConfig、VisitorNotice；复用框架已有 PicklistSet 及动态模块的字段定义、metadata 与模板 |
 | 系统管理 | 使用框架现有用户、角色、权限和日志能力 | 沿用框架实体，本版不重复定义 |
 
 访客管理采用统一申请单模型，按登记类型使用对应动态字段模板。培训记录模块读取实际的学习和考试记录，与课程配置分开。
@@ -56,7 +56,8 @@
 | --- | --- | --- |
 | VisitorType | Visitor、Logistics、Contractor | 普通访客、物流车辆、施工人员 |
 | VisitorApplicationStatus | PendingApproval、Approved、CheckedIn、CheckedOut、Rejected、Cancelled、Expired | 待审批、已批准、已进厂、已出厂、已驳回、已取消、已过期 |
-| VisitorApprovalTaskStatus | Pending、Approved、Rejected、Cancelled | 待处理、已通过、已驳回、已取消；每个区域任务独立保存 |
+| VisitorApprovalKind | Business、Area | 业务负责人审批、区域负责人审批；用于审批配置和任务 |
+| VisitorApprovalTaskStatus | Pending、Approved、Rejected、Cancelled | 待处理、已通过、已驳回、已取消；每条业务或区域任务独立保存 |
 | TrainingQuestionType | SingleChoice、MultipleChoice | 单选题、多选题 |
 
 前端的 `training` 是继续学习入口，不是新申请类型，不加入 VisitorType。
@@ -89,29 +90,34 @@
 | VisitorNoticeId | string | 提交时确认的须知，适用类型必须与本申请 Type 一致 |
 | NoticeContentSnapshot | string | 本申请确认的须知内容快照 |
 | NoticeAcceptedAt | DateTimeOffset | 须知确认时间 |
-| ReviewedAt | DateTimeOffset? | 整单审批结论形成的时间：全部区域通过或任一区域驳回时记录；尚无整单结论时为空 |
+| ReviewedAt | DateTimeOffset? | 整单审批结论形成的时间：业务及全部区域通过或任一审批任务驳回时记录；尚无整单结论时为空 |
 | CheckedInAt | DateTimeOffset? | 本申请首位人员实际进厂的时间；无人进厂时为空 |
 | CheckedOutAt | DateTimeOffset? | 确认整单出厂时保存的最后一位已进厂人员实际出厂时间；整单尚未结束时为空 |
 
-关联集合：申请人员、申请车辆、申请区域、区域审批任务、个人培训记录。各区域的审批人、审批时间与意见保存到 VisitorApprovalTask，不在申请单上用单一审批人或意见代替。
+关联集合：申请人员、申请车辆、申请区域、业务与区域审批任务、个人培训记录。每条任务的审批人、审批时间与意见保存到 VisitorApprovalTask，不在申请单上用单一审批人或意见代替。
 
 动态扩展约定：
 
 - 接入已有动态字段模块，复用其字段定义、模板关联和字段值承载，不新增一套扩展字段实体或自定义存储结构。具体承载属性沿用该模块约定。
-- 普通访客、物流车辆、施工人员按 Type 使用对应申请模板；物流模板当前没有类型专属业务字段，可为空。
-- 扩展字段使用稳定的字段键，标签、控件类型、必填及下拉选项由动态字段定义及其 metadata 配置。前端已实现的业务字段和必填规则保持一致。
+- 普通访客、物流车辆、施工人员按 Type 使用对应申请模板；三类模板均包含定位业务审批人员的动态字段。
+- 扩展字段使用稳定的字段键，标签、控件类型、必填及下拉选项由动态字段定义及其 metadata 配置。已有业务字段保持归属，审批人员选择按本轮规则增加后台用户标识。
 - 以下为第一版动态字段模板的初始内容，不是 VisitorApplication 的固定属性：
 
 | 申请类型 | 动态字段键 | 含义 | 初始配置 |
 | --- | --- | --- | --- |
-| 普通访客 | hostName | 被访人姓名 | 文本，必填 |
+| 普通访客 | hostUserId | 被访人审批账号 | 后台人员选择，必填，保存框架用户标识 |
+| 普通访客 | hostName | 被访人姓名 | 由所选 hostUserId 同步保存显示姓名，沿用现有展示字段 |
 | 普通访客 | visitReason | 到访事由 | 下拉框，必填，选项定义在该字段的 metadata 中 |
 | 施工人员 | projectName | 项目名称 | 文本，必填 |
 | 施工人员 | workArea | 具体施工位置 | 文本，必填，与访问区域分别填写 |
 | 施工人员 | contractorCompany | 整单施工单位 | 文本，必填，作为本单施工人员所属单位的来源 |
-| 施工人员 | supervisor | 现场负责人姓名 | 文本，必填 |
+| 施工人员 | supervisorUserId | 现场负责人审批账号 | 后台人员选择，必填，保存框架用户标识 |
+| 施工人员 | supervisor | 现场负责人姓名 | 由所选 supervisorUserId 同步保存显示姓名，沿用现有展示字段 |
+| 物流车辆 | logisticsContactUserId | 物流对接人员 | 后台人员选择，必填，保存框架用户标识及对应显示含义 |
 
 动态数据属于整张申请，不按人员重复创建。申请需要保留提交时的字段键、值和显示含义，模板或选项后续调整不能改变历史申请的业务信息；历史字段解释由动态模块的记录保留机制承载。
+
+业务审批人员选择约定：被访人、现场负责人及物流对接人员均须对应可用且有审批权限的后台用户。姓名用于展示，审批分配使用稳定用户标识，不通过姓名模糊匹配，也不允许只填写姓名便完成新申请提交。这些标识仍由动态字段模块承载，不新增 VisitorApplication 的类型专属固定属性。第一版物流由登记时选中的对接人员审批，仓储、出货等职责通过所选人员体现，不另加收货／发货匹配规则。
 
 约束：
 
@@ -136,8 +142,8 @@
 
 审批与培训并行规则：
 
-- 提交申请时，为每个所选区域创建审批任务，同时创建培训记录和课程快照，初始 Status 为 PendingApproval，人员即可开始学习；不要求先审批通过。
-- 各区域负责人并行审批，部分区域通过时申请仍为 PendingApproval。全部区域通过后转为 Approved，并记录整单 ReviewedAt；审批通过不要求培训已完成。第一版建议任一区域驳回后整单转为 Rejected，并记录 ReviewedAt，取消其余待处理任务；驳回原因保存在对应审批任务中。
+- 提交申请时，按登记类型创建一条业务审批任务，再为每个所选区域创建一条区域审批任务，同时创建培训记录和课程快照。初始 Status 为 PendingApproval，人员即可开始学习；不要求先审批通过。
+- 第一版建议业务负责人审批与各区域审批并行，无先后顺序。部分任务通过时申请仍为 PendingApproval；业务任务与全部区域任务均通过后转为 Approved，并记录整单 ReviewedAt。审批通过不要求培训已完成；建议任一任务驳回后整单转为 Rejected，并记录 ReviewedAt，取消其余待处理任务，驳回原因保存在对应任务中。
 - 培训先完成但审批未完成时，申请仍为 PendingApproval；审批先通过但培训未完成时，申请仍为 Approved。两项均通过后，申请仍为 Approved，直到实际确认进厂。
 - 只有 Status 为 Approved 或 CheckedIn、所有申请人员均通过本申请的全部课程，才可确认尚未进厂人员的首次进厂，记录该人员的 CheckedInAt。首位人员进厂时，申请从 Approved 转为 CheckedIn，申请 CheckedInAt 取人员进厂时间的最小值；后续人员进厂不重置该时间。
 - CheckedIn 确认整单出厂时，必须确保所有实际进厂人员均已出厂，随后转为 CheckedOut，申请 CheckedOutAt 取已进厂人员出厂时间的最大值。仅部分人员出厂不结束申请；尚未到访人员的两个时间保留为空，整单结束后不可再进厂。审批时间、培训完成时间与实际进出厂时间分别保存。
@@ -148,11 +154,14 @@
 
 ```mermaid
 flowchart TB
-    Submitted[提交申请：待审批] --> Review[各区域负责人并行审批]
+    Submitted[提交申请：待审批] --> BusinessReview[业务负责人审批：按登记类型确定]
+    Submitted --> AreaReview[各区域负责人并行审批]
     Submitted --> Training[学习视频与答题]
-    Review -->|全部区域通过| Gate{全部区域审批通过且全部人员培训通过}
+    BusinessReview -->|业务审批通过| Gate{业务及全部区域审批通过且全部人员培训通过}
+    AreaReview -->|全部区域通过| Gate
     Training -->|培训通过| Gate
-    Review -->|任一区域驳回：建议规则| Rejected[已驳回]
+    BusinessReview -->|驳回：建议规则| Rejected[已驳回]
+    AreaReview -->|任一区域驳回：建议规则| Rejected
     Gate -->|确认首位人员进厂| CheckedIn[已进厂]
     CheckedIn -->|已进厂人员均出厂并确认整单结束| CheckedOut[已出厂]
 ```
@@ -188,7 +197,7 @@ flowchart TB
 | 在厂 | CheckedInAt 有值，CheckedOutAt 为空 |
 | 已出厂 | CheckedInAt、CheckedOutAt 均有值 |
 
-- 首次进厂遵循所属申请的全部区域审批和全员培训要求；进厂时只写入一次 CheckedInAt。
+- 首次进厂遵循所属申请的业务审批、全部区域审批和全员培训要求；进厂时只写入一次 CheckedInAt。
 - 出厂前必须已经进厂，CheckedOutAt 不得早于 CheckedInAt；不得出现没有进厂时间却有出厂时间的记录。出厂后两个时间保留原值。
 - 个人出厂时间可独立记录，全部已进厂人员均出厂后才能确认整单结束。未到访人员不补写进出厂时间。
 
@@ -234,33 +243,35 @@ flowchart TB
 
 每张申请至少选择一个启用区域，同一区域不重复选择。动态字段 `workArea` 描述具体施工位置，与此区域关联分别保存。
 
-### 4.6 VisitorApprovalTask：区域审批任务
+### 4.6 VisitorApprovalTask：申请审批任务
 
-表示一张申请中某个访问区域的审批待办与结果。一张申请选择几个区域，就生成几条任务，各区域分别处理；审批配置与培训方案配置互相独立。
+保存业务负责人或区域负责人的审批待办与结果。一张申请生成一条业务审批任务，以及每个所选区域的一条区域审批任务。各任务分别保存处理结果；审批配置与培训方案配置互相独立。
 
 | 字段 | 类型 | 定义 |
 | --- | --- | --- |
 | VisitorApplicationId | string | 所属申请单 |
-| VisitAreaId | string | 本任务负责审批的访问区域，必须属于该申请所选区域 |
-| VisitorApprovalConfigId | string | 生成本任务时采用的区域审批配置 |
-| ApproverUserId | string | 提交时从区域配置复制的负责人，关联框架已有后台用户 |
-| Status | VisitorApprovalTaskStatus | 初始为 Pending，保存该区域的审批结果 |
+| Kind | VisitorApprovalKind | Business 为类型业务审批，Area 为区域审批 |
+| VisitAreaId | string? | 区域任务必填，且属于该申请所选区域；业务任务为空 |
+| VisitorApprovalConfigId | string | 生成本任务时采用的审批配置 |
+| ApproverUserId | string | 提交时按配置及申请动态字段确定的审批人，关联框架已有后台用户；生成后保留原值 |
+| Status | VisitorApprovalTaskStatus | 初始为 Pending，保存本任务的审批结果 |
 | ReviewedById | string? | 实际审批操作人；尚未处理时为空 |
-| ReviewedAt | DateTimeOffset? | 该区域通过或驳回的时间；尚未处理时为空 |
-| ReviewComment | string? | 该区域的审批意见；驳回时必须填写原因 |
+| ReviewedAt | DateTimeOffset? | 本任务通过或驳回的时间；尚未处理时为空 |
+| ReviewComment | string? | 本任务的审批意见；驳回时必须填写原因 |
 | CancelledAt | DateTimeOffset? | 未处理任务被取消的时间；未取消时为空 |
 
 任务与整单的约定：
 
-- `VisitorApplicationId + VisitAreaId` 唯一，每个所选区域恰有一条任务；不得遗漏所选区域，也不得生成未选择区域的任务。区域名称使用 VisitorApplicationArea 中的提交时快照。
-- 第一版建议每个区域配置一位负责人。不同区域可以配置同一位负责人，但仍按区域生成独立任务，分别保存结果，不因审批人相同而合并区域审批。
-- 提交时必须能为所有所选区域取得启用的配置和有效负责人，否则不能完成提交。申请、区域任务和个人培训任务一起生成；重复提交不能重复生成这些记录。
-- 各区域任务并行处理，无先后顺序；负责人可在培训未完成时审批。有审批权限的指定负责人才能处理自己的 Pending 任务，实际 ReviewedById 与 ApproverUserId 一致。
-- 部分任务 Approved、其余仍 Pending 时，整单保持 PendingApproval；只有全部区域任务 Approved，整单才转为 Approved，申请 ReviewedAt 取最后一条通过任务的审批时间。
+- 每张申请恰有一条 Business 任务，其审批人按申请 Type 对应配置从动态字段取得：普通访客为 hostUserId，施工人员为 supervisorUserId，物流车辆为 logisticsContactUserId。
+- Area 任务按 `VisitorApplicationId + VisitAreaId` 唯一，每个所选区域恰有一条；不得遗漏所选区域，也不得生成未选择区域的任务。区域名称使用 VisitorApplicationArea 中的提交时快照。
+- 选择 N 个区域时，共生成 `1 + N` 条任务。业务负责人同时是区域负责人，或多个区域负责人相同，仍分别保留各职责的任务和审批结果，不因审批人相同而合并。
+- 第一版建议每条任务指定一位审批人。提交时必须取得本类型的启用业务审批配置、动态字段中的有效业务审批人，以及所有所选区域的启用配置和有效负责人，否则不能完成提交。申请、全部审批任务和个人培训任务一起生成；重复提交不能重复生成这些记录。
+- 第一版建议所有审批任务并行处理，无先后顺序；负责人可在培训未完成时审批。有审批权限的指定负责人才能处理自己的 Pending 任务，实际 ReviewedById 与 ApproverUserId 一致。
+- 部分任务 Approved、其余仍 Pending 时，整单保持 PendingApproval；只有业务任务及全部区域任务 Approved，整单才转为 Approved，申请 ReviewedAt 取最后一条通过任务的审批时间。
 - 第一版建议任一任务 Rejected 即结束整单审批：申请转为 Rejected，申请 ReviewedAt 取驳回时间，其余 Pending 任务转为 Cancelled。先前已通过的任务保留原结果，不改写历史。
 - 申请进厂前取消时，剩余 Pending 任务转为 Cancelled；将来启用独立过期规则后，待审批申请过期时也取消剩余 Pending 任务。任务取消同时记录 CancelledAt，ReviewedById、ReviewedAt、ReviewComment 保持为空。
-- Approved、Rejected、Cancelled 的任务不重复处理。整单审批结论与任务处理同时更新，不能绕过区域任务直接把申请标记为审批通过；并发审批也必须遵守全部通过及整单结束的约束。
-- 任务保存提交时的负责人。后续配置变更只影响新申请，不自动更换已有任务的负责人，也不改写历史审批结果。已通过任务在申请后续取消、进厂或出厂时仍保留 Approved。
+- Approved、Rejected、Cancelled 的任务不重复处理。整单审批结论与任务处理同时更新，不能绕过业务或区域任务直接把申请标记为审批通过；并发审批也必须遵守全部通过及整单结束的约束。
+- 任务保存提交时解析出的审批人，之后不再从当前动态字段或配置实时计算待办归属。后续配置变更只影响新申请，不自动更换已有任务的审批人，也不改写历史审批结果。已通过任务在申请后续取消、进厂或出厂时仍保留 Approved。
 
 ## 5. 培训管理实体
 
@@ -436,7 +447,7 @@ Passed 为真时写入所属 TrainingRecord 的 CompletedAt。未通过重考新
 | SortOrder | int | 展示顺序 |
 | IsEnabled | bool | 是否允许新申请选择 |
 
-Code 唯一。区域负责展示和关联培训方案，不承担门禁授权或具体施工位置管理。
+Code 唯一。区域用于展示、关联培训方案及区域审批配置，不承担门禁授权或具体施工位置管理。
 
 ### 7.2 VisitorNotice：访客须知
 
@@ -463,22 +474,36 @@ Code 唯一。区域负责展示和关联培训方案，不承担门禁授权或
 
 本规则是对现有前端共用须知内容的需求调整，本轮只定义配置与实体关系，前端弹窗在后续接入时按类型读取相应内容。
 
-### 7.3 VisitorApprovalConfig：区域审批配置
+### 7.3 VisitorApprovalConfig：审批配置
 
-配置按访问区域维护，每个区域分别设置负责人。申请选择多个区域时，必须分别匹配各区域的配置；不能只为整单挑选一个审批人。第一版建议采用每区域一位负责人、各区域并行审批的方式。
+配置分为类型业务审批与区域审批两类。业务审批配置按登记类型指定从哪个动态字段取得审批人；区域审批配置按访问区域指定负责人。两类配置都必须参与申请任务生成。
 
 | 字段 | 类型 | 定义 |
 | --- | --- | --- |
-| VisitAreaId | string | 适用访问区域，关联 VisitArea |
-| ApproverUserId | string | 本区域审批负责人，关联框架已有后台用户 |
-| IsEnabled | bool | 是否为本区域当前使用的审批配置 |
+| Kind | VisitorApprovalKind | Business 为类型业务审批配置，Area 为区域审批配置 |
+| VisitorType | VisitorType? | 业务配置必填，用于匹配申请类型；区域配置为空 |
+| VisitAreaId | string? | 区域配置必填，关联 VisitArea；业务配置为空 |
+| ApproverFieldKey | string? | 业务配置必填，指定保存审批人用户标识的动态字段键；区域配置为空 |
+| ApproverUserId | string? | 区域配置必填，指定后台负责人；业务配置为空，由申请动态字段取得具体人员 |
+| IsEnabled | bool | 是否为当前使用的审批配置 |
+
+第一版配置来源：
+
+| 审批职责 | 匹配依据 | 审批人来源 | 生成任务 |
+| --- | --- | --- | --- |
+| 普通访客业务审批 | Kind = Business、VisitorType = Visitor | 动态字段 hostUserId 中选定的被访人 | 一条 Business 任务 |
+| 施工人员业务审批 | Kind = Business、VisitorType = Contractor | 动态字段 supervisorUserId 中选定的现场负责人 | 一条 Business 任务 |
+| 物流车辆业务审批 | Kind = Business、VisitorType = Logistics | 动态字段 logisticsContactUserId 中选定的对接人员 | 一条 Business 任务 |
+| 区域审批 | Kind = Area、VisitAreaId = 每个所选区域 | 配置中的 ApproverUserId | 每个区域一条 Area 任务 |
 
 配置约束：
 
-- 每个区域同一时间最多有一份启用配置；可用于新申请登记的区域应配置有效负责人。启用配置时负责人必须是可用且有审批权限的后台用户。
-- 区域是审批人匹配的依据。申请选中两个或三个区域时，分别读取两份或三份配置，生成对应任务；不按整单仅匹配一次，也不沿用培训方案去重结果来决定审批任务数量。
-- 提交时把配置标识和负责人复制到区域任务，之后调整负责人或停用配置只影响新申请。被任务引用的配置保留，不更改其 VisitAreaId。
-- 同一负责人可负责多个区域；各区域职责及审批结果仍独立。当前方案不新增审批节点或多级流程实体，后续如需多个候选人、会签或转交，再明确相应规则。
+- Kind = Business 时，VisitorType、ApproverFieldKey 必填，VisitAreaId、ApproverUserId 为空；Kind = Area 时，VisitAreaId、ApproverUserId 必填，VisitorType、ApproverFieldKey 为空。两类来源互斥，不能同时填写动态来源和固定负责人。
+- 每个 VisitorType 同一时间最多有一份启用业务配置；每个区域同一时间最多有一份启用区域配置。三类业务审批均不能省略，区域审批也不替代业务审批。
+- 业务配置的 ApproverFieldKey 必须指向该类型模板中保存后台用户标识的字段；不能配置为 hostName、supervisor 等姓名文本，也不接受无法定位账号的自由文本。启用时检查字段定义，提交时检查实际选择的用户是否可用且有审批权限。
+- 区域配置启用时负责人必须是可用且有审批权限的后台用户。申请选中两个或三个区域时，逐个匹配配置；不沿用培训方案去重结果决定审批任务数量。
+- 提交时把配置标识和解析出的具体审批人保存到任务。之后调整动态字段来源、区域负责人或停用配置只影响新申请；被任务引用的配置保留，不更改其 Kind、VisitorType 或 VisitAreaId。
+- 同一用户可同时承担业务和区域职责，各职责仍有独立任务和结果。第一版建议每条任务一位审批人、任务并行；后续如需多个候选人、会签、转交或先后顺序，再明确对应规则。
 
 ## 8. 实体关系
 
@@ -497,7 +522,7 @@ erDiagram
     VisitorApplication ||--|{ VisitorApplicationArea : selects
     VisitArea ||--o{ VisitorApplicationArea : referenced_by
     VisitorApplication ||--|{ VisitorApprovalTask : requests_review
-    VisitorApplicationArea ||--|| VisitorApprovalTask : requires_review
+    VisitorApplicationArea |o--|| VisitorApprovalTask : area_task_only
     VisitArea ||--o{ VisitorApprovalConfig : configures
     VisitorApprovalConfig ||--o{ VisitorApprovalTask : generates
     VisitorNotice ||--o{ VisitorApplication : accepted_in
@@ -511,7 +536,7 @@ erDiagram
     TrainingRecord ||--o{ ExamAttempt : attempts
 ```
 
-关系图中的至少一个人员、区域、区域审批任务、培训记录，以及课程的视频和题目要求，适用于已提交申请和可分配课程。每个申请区域恰有一条审批任务。配置编辑过程可存在尚未满足这些要求的草稿内容，但不能据此生成申请任务。
+关系图中的至少一个人员、区域、审批任务、培训记录，以及课程的视频和题目要求，适用于已提交申请和可分配课程。每张申请恰有一条业务任务，每个申请区域恰有一条区域任务；业务任务不关联申请区域。VisitArea 仅关联 Kind = Area 的配置，业务配置按 VisitorType 匹配。配置编辑过程可存在尚未满足这些要求的草稿内容，但不能据此生成申请任务。
 
 固定字段 TimeSlot 的选项来自框架已有 PicklistSet，动态字段 `visitReason` 的选项来自字段定义的 metadata，申请分别保留各字段的提交值。本图不重复定义框架已有 PicklistSet 或动态模块的内部实体。
 
@@ -524,13 +549,15 @@ erDiagram
 | Draft | 提交前仍作为前端草稿，草稿 id 对应 ClientRequestId |
 | Visit | VisitorApplication |
 | 新增的申请流程状态、整单审批结论时间和进出厂信息 | VisitorApplication.Status、ReviewedAt、CheckedInAt、CheckedOutAt |
-| 新增的各区域审批待办和意见 | VisitorApprovalTask，按申请所选区域生成，各自保存审批人、状态、时间和意见 |
-| 新增的区域审批负责人配置 | VisitorApprovalConfig，按 VisitArea 分别维护负责人 |
+| 新增的业务及区域审批待办和意见 | VisitorApprovalTask，包含一条业务任务及各区域任务，各自保存审批人、状态、时间和意见 |
+| 新增的业务审批人取值规则及区域负责人配置 | VisitorApprovalConfig，业务配置按 VisitorType 指定动态字段来源，区域配置按 VisitArea 指定负责人 |
 | appointmentDate、timeSlot | VisitorApplication 的通用固定字段 |
 | 预约时段的下拉选项 | 框架已有 PicklistSet，所选值保存到固定字段 TimeSlot |
 | 到访事由的下拉选项 | 动态字段 visitReason 定义的 metadata |
 | hostName、visitReason | 普通访客动态模板中的同名字段键 |
 | projectName、workArea、contractorCompany、supervisor | 施工人员动态模板中的同名字段键 |
+| 新增的被访人、现场负责人审批账号 | 动态字段 hostUserId、supervisorUserId；选择后台用户，并同步现有姓名展示字段 |
+| 新增的物流对接人员 | 动态字段 logisticsContactUserId，选择后台用户；业务任务分配给该人员 |
 | Person | VisitorParticipant |
 | 新增的人员进出厂时间及在厂状态 | VisitorParticipant.CheckedInAt、CheckedOutAt；在厂状态由这两个时间推导 |
 | 新增的人员身份证号码及上传附件 | VisitorParticipant.IdCardNumber、AttachmentSource、AttachmentFileName |
@@ -555,7 +582,9 @@ erDiagram
 
 现有前端按物流或施工类型追加课程的逻辑，后续接入时调整为仅按所选区域关联方案生成任务。本轮只更新实体与业务规则定义。
 
-前端“一单三人、两门课程”的示例，对应三条 VisitorParticipant、六条 TrainingRecord，各条记录拥有独立视频进度及 ExamAttempt。若选择三个访问区域，还对应三条 VisitorApprovalTask。六条培训记录全部通过且三个区域全部审批通过后才能确认进厂，确认出厂后正常结束；预约时段不参与进厂判断。
+现有前端 hostName、supervisor 为姓名文本，后续接入审批时增加对应后台人员选择与用户标识，姓名保留用于展示；物流动态模板增加对接人员选择。本轮只调整 SPEC，不修改前端实现。
+
+前端“一单三人、两门课程”的示例，对应三条 VisitorParticipant、六条 TrainingRecord，各条记录拥有独立视频进度及 ExamAttempt。若选择三个访问区域，还对应四条 VisitorApprovalTask：一条业务任务、三条区域任务。六条培训记录全部通过且四条审批任务全部通过后才能确认进厂，确认出厂后正常结束；预约时段不参与进厂判断。
 
 ## 10. 模型检查要点
 
@@ -566,9 +595,10 @@ erDiagram
 - 申请与区域、区域与方案均为多对多关联；培训方案只由所选区域决定，按方案去重，不因选择多个区域重复生成培训记录。
 - 一张申请拥有独立人员记录，另一张申请重新创建培训记录。
 - 申请提交后业务审批与学习培训并行；待审批期间可学习答题，进厂前必须审批通过且全部人员培训通过。
-- 审批人配置按访问区域分别维护，每个所选区域恰有一条任务；即使多个区域负责人相同，也不合并区域任务。
-- 部分区域审批通过不改变整单待审批状态；全部区域通过才形成已批准结论。任一区域驳回即驳回整单、取消剩余待办，是本版建议规则。
-- 区域任务保存各自审批人、状态、时间和意见，申请只保留整单结论时间；负责人配置修改不自动改变已有任务。
+- 审批配置支持类型业务规则和区域负责人规则：被访人、现场负责人、物流对接人员来自对应动态用户字段，各区域负责人来自区域配置。
+- 每张申请恰有一条业务任务和每个所选区域的一条区域任务，共 `1 + N` 条；即使业务和区域负责人相同，也不合并任务。
+- 部分审批任务通过不改变整单待审批状态；业务任务和全部区域任务都通过才形成已批准结论。所有任务并行、任一任务驳回即驳回整单并取消剩余待办，是本版建议规则。
+- 每条任务保存各自审批人、状态、时间和意见，申请只保留整单结论时间；任务生成后保留解析出的用户标识，配置修改不自动改变已有任务。
 - Status 管理七个申请流程状态，培训完成情况从个人记录汇总；培训通过不自动将申请标记为已批准、已进厂或已出厂。
 - 审批与进出厂分别记录操作结果及时间；未进厂申请可取消，Expired 预留且独立判定规则待明确，暂不启用自动过期；已进厂未出厂的申请保留实际在厂状态。
 - 每位人员在本申请中只进出一次；人员在厂状态由 CheckedInAt、CheckedOutAt 推导，不单独保存 Status 或通行记录实体。
@@ -584,4 +614,4 @@ erDiagram
 - 三种申请分别匹配同类型的启用须知，不能关联其他类型须知；每种类型最多一份启用。
 - 培训记录为独立主导航，能通过人员、申请、课程及历次考试关联查看数据。
 
-本版已定义按区域配置负责人及并行审批任务。每区域一位负责人、任一区域驳回即驳回整单是第一版建议，需在实现前确认。独立过期规则、提交后申请内容可修改的范围及影响仍待明确；后台申请编辑与删除的权限、具体通行页面操作和视频加载失败计时策略留待后续页面与接口规格。
+本版已定义按登记类型从动态字段取得业务审批人、按区域配置负责人及对应任务。每条任务一位审批人、业务及区域任务并行、任一任务驳回即驳回整单是第一版建议，需在实现前确认。独立过期规则、提交后申请内容可修改的范围及影响仍待明确；后台申请编辑与删除的权限、具体通行页面操作和视频加载失败计时策略留待后续页面与接口规格。
