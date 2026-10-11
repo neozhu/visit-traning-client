@@ -49,6 +49,7 @@ export interface ExamResult {
 export interface TrainingTask {
   id: string
   visitId: string
+  subjectId: string
   planId: string
   createdAt: number
   completedLessonIds: string[]
@@ -71,6 +72,17 @@ export function makeId(prefix: string) {
 
 export function normalizePlate(plate: string) {
   return plate.replace(/[\s·•.-]/g, '').toUpperCase()
+}
+
+export function getTrainingSubjects(draft: Draft): Array<Pick<Person, 'id' | 'name' | 'phone'>> {
+  if (draft.type !== 'logistics') return draft.people.map(p => ({ id: p.id, name: p.name.trim(), phone: p.phone.trim() }))
+  const subjects: Array<Pick<Person, 'id' | 'name' | 'phone'>> = []
+  for (const vehicle of draft.vehicles) {
+    const name = vehicle.driver.trim()
+    const phone = vehicle.phone.trim()
+    if (!subjects.some(s => s.name === name && s.phone === phone)) subjects.push({ id: vehicle.id, name, phone })
+  }
+  return subjects
 }
 
 export function validateDraft(draft: Draft): string {

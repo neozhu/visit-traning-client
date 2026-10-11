@@ -1,10 +1,11 @@
 import { Lesson, getPlan } from '../../data/catalog'
 import { TrainingTask } from '../../models/visit'
 import { store, showError } from '../../services/store'
+import { presentTask } from '../../services/presentation'
 
 Page({
   data: {
-    taskId: '', task: null as TrainingTask | null, title: '', lessons: [] as Array<Lesson & { done: boolean }>,
+    taskId: '', task: null as TrainingTask | null, title: '', subjectName: '', subjectPhone: '', lessons: [] as Array<Lesson & { done: boolean }>,
     selected: 0, lesson: null as Lesson | null, watched: false, allDone: false, progress: 0, videoError: '', missing: false,
     fallbackActive: false, fallbackRemaining: 0, videoErrorDetail: '', videoSource: ''
   },
@@ -41,7 +42,8 @@ Page({
         preparationError = error instanceof Error ? error.message : '本地视频准备失败'
       }
     }
-    this.setData({ task, title: plan.title, lesson, videoSource,
+    const participant = presentTask(task)
+    this.setData({ task, title: plan.title, subjectName: participant.subjectName, subjectPhone: participant.subjectPhone, lesson, videoSource,
       lessons: plan.lessons.map(l => ({ ...l, done: task.completedLessonIds.includes(l.id) })),
       watched: task.completedLessonIds.includes(lesson.id), allDone: plan.lessons.every(l => task.completedLessonIds.includes(l.id)), missing: false })
     if (preparationError) this.onVideoError({ detail: { errMsg: preparationError } } as WechatMiniprogram.CustomEvent<{ errMsg: string }>)
@@ -110,7 +112,7 @@ Page({
     const pages = getCurrentPages()
     const index = pages.findIndex(p => p.route === 'pages/tasks/tasks')
     if (index >= 0 && index < pages.length - 1) wx.navigateBack({ delta: pages.length - 1 - index })
-    else wx.redirectTo({ url: `/pages/tasks/tasks?visitId=${this.data.task?.visitId || ''}` })
+    else wx.redirectTo({ url: `/pages/tasks/tasks?visitId=${this.data.task?.visitId || ''}&subjectId=${this.data.task?.subjectId || ''}` })
   },
   onHide() { wx.createVideoContext('lesson-video').pause(); this.stopFallback() },
   onUnload() { this.stopFallback() }

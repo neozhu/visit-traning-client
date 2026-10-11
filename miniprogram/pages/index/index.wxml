@@ -10,12 +10,12 @@
     <view class="site-badge"><view class="live-dot"></view>示例制造园区 · Demo</view>
   </view>
   <view class="home-content">
-    <view class="row between home-heading"><text class="section-title">请选择您的到访身份</text><text class="small muted">四种入口 · 一站完成</text></view>
+    <view class="row between home-heading"><text class="section-title">请选择办理事项</text><text class="small muted">安全 · 高效 · 便捷</text></view>
     <view class="entry-list">
-      <button wx:for="{{entries}}" wx:key="type" class="entry {{item.type}}" data-type="{{item.type}}" bindtap="onEntry" hover-class="press">
-        <view class="entry-icon"><image src="/assets/{{item.icon}}-white.svg" aria-hidden="true" /></view>
+      <button wx:for="{{entries}}" wx:key="type" class="entry {{item.type}}" data-type="{{item.type}}" bindtap="onEntry" hover-class="press" aria-label="{{item.title}}，{{item.description}}">
+        <view class="entry-icon"><image src="/assets/{{item.icon}}-home.svg" aria-hidden="true" /></view>
         <view class="grow"><view class="entry-title">{{item.title}}</view><view class="entry-description">{{item.description}}</view></view>
-        <image class="entry-arrow" src="/assets/chevron-white.svg" aria-hidden="true" />
+        <image class="entry-arrow" src="/assets/chevron.svg" aria-hidden="true" />
       </button>
     </view>
     <button wx:if="{{pendingCount}}" class="resume" bindtap="onResume" hover-class="press"><view class="grow"><view class="resume-title">继续未完成的培训</view><view class="small muted">您还有 {{pendingCount}} 项任务待完成</view></view><image class="chevron" src="/assets/chevron.svg" aria-hidden="true" /></button>

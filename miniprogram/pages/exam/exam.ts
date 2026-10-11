@@ -1,10 +1,11 @@
 import { getPlan } from '../../data/catalog'
 import { Question } from '../../models/visit'
 import { store, showError } from '../../services/store'
+import { presentTask } from '../../services/presentation'
 
 Page({
   data: {
-    taskId: '', title: '', questions: [] as Question[], current: 0, question: null as Question | null,
+    taskId: '', title: '', subjectName: '', subjectPhone: '', questions: [] as Question[], current: 0, question: null as Question | null,
     options: [] as Array<{ index: number; label: string; text: string; selected: boolean }>, answered: 0,
     remaining: '15:00', remainingSeconds: 900, progress: 0, error: '', feedback: '', submitting: false,
     questionStates: [] as Array<{ index: number; answered: boolean; wrong: boolean }>, valid: false
@@ -19,7 +20,8 @@ Page({
       const begun = store.beginExam(task.id)
       const plan = getPlan(task.planId)
       const first = plan.questions.findIndex(q => begun.attempt?.answers[q.id] === undefined)
-      this.setData({ valid: true, questions: plan.questions, title: plan.title, current: first < 0 ? 0 : first })
+      const participant = presentTask(task)
+      this.setData({ valid: true, questions: plan.questions, title: plan.title, subjectName: participant.subjectName, subjectPhone: participant.subjectPhone, current: first < 0 ? 0 : first })
       this.refresh()
     } catch (error) { this.setData({ error: error instanceof Error ? error.message : '考试加载失败' }) }
   },
@@ -76,5 +78,8 @@ Page({
       wx.redirectTo({ url: `/pages/result/result?taskId=${this.data.taskId}` })
     } catch (error) { this.setData({ submitting: false }); showError(error) }
   },
-  onTasks() { wx.redirectTo({ url: '/pages/tasks/tasks' }) }
+  onTasks() {
+    const task = store.task(this.data.taskId)
+    wx.redirectTo({ url: task ? `/pages/tasks/tasks?visitId=${task.visitId}&subjectId=${task.subjectId}` : '/pages/training/training' })
+  }
 })

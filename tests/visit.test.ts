@@ -99,15 +99,17 @@ test('重复提交同一草稿不会产生重复记录或任务', () => {
   assert.equal(store.tasks(first.id).length, 1)
 })
 
-test('多人申请单中每门课程只生成一个任务', () => {
+test('多人申请单按人员和课程分别生成任务', () => {
   const { store, draft } = setup()
   draft.areaIds = ['production', 'research']
   draft.people.push({ ...draft.people[0], id: 'p2', name: '李四', phone: '13900139000' })
   const visit = store.register(draft)
-  assert.equal(store.tasks(visit.id).length, 2)
+  assert.deepEqual(store.tasks(visit.id).map(t => [t.subjectId, t.planId]), [
+    ['person-1', 'production'], ['person-1', 'research'], ['p2', 'production'], ['p2', 'research']
+  ])
 })
 
-test('学习培训独立流程只需人员信息，无须区域或访客须知', () => {
+test('已有学习培训登记按人员保留通用课程任务', () => {
   const { store, draft } = setup()
   draft.type = 'training'
   draft.areaIds = []
@@ -116,10 +118,10 @@ test('学习培训独立流程只需人员信息，无须区域或访客须知',
   assert.equal(validateDraft(draft), '')
   const visit = store.register(draft)
   assert.equal(visit.people.length, 2)
-  assert.deepEqual(store.tasks(visit.id).map(t => t.planId), ['general'])
+  assert.deepEqual(store.tasks(visit.id).map(t => [t.subjectId, t.planId]), [['person-1', 'general'], ['p2', 'general']])
 })
 
-test('多车辆申请单共享区域与物流课程，记录不保留无关人员', () => {
+test('多车辆申请单的每位司机独立学习区域与物流课程', () => {
   const { store, draft } = setup()
   draft.type = 'logistics'
   draft.vehicles = [
@@ -127,25 +129,152 @@ test('多车辆申请单共享区域与物流课程，记录不保留无关人�
     { id: 'v2', plate: '粤B67890', driver: '李师傅', phone: '13900139000', company: '示例物流' }
   ]
   const visit = store.register(draft)
-  assert.equal(store.tasks(visit.id).length, 2)
+  assert.deepEqual(store.tasks(visit.id).map(t => [t.subjectId, t.planId]), [
+    ['v1', 'production'], ['v1', 'traffic'], ['v2', 'production'], ['v2', 'traffic']
+  ])
   assert.deepEqual(visit.people, [])
 })
 
-test('非物流登记不存储隐藏车辆，旧版重复培训合并并保留已通过结果', () => {
+test('旧版同一人员重复任务合并，但不同人员的进度保持独立', () => {
   const { store, storage, data, draft } = setup()
   draft.vehicles = [{ id: 'v1', plate: '粤B12345', driver: '王师傅', phone: '13800138000', company: '示例物流' }]
+  draft.people.push({ ...draft.people[0], id: 'p2', name: '李四', phone: '13900139000' })
   const visit = store.register(draft)
   assert.deepEqual(visit.vehicles, [])
   const task = store.tasks(visit.id)[0]
   const plan = getPlan(task.planId)
   const answers = Object.fromEntries(plan.questions.map(q => [q.id, q.correct]))
   const cache = data.get('visitsafe.demo.v1') as { tasks: unknown[] }
-  cache.tasks.push({ ...task, id: 'legacy-passed', subjectId: 'p2', completedLessonIds: plan.lessons.map(l => l.id),
+  cache.tasks.push({ ...task, id: 'legacy-passed', subjectId: 'person-1', completedLessonIds: plan.lessons.map(l => l.id),
     lastResult: { ...gradeExam(plan.questions, answers), submittedAt: task.createdAt }, completedAt: task.createdAt })
   const restored = createVisitStore(storage)
-  assert.equal(restored.tasks(visit.id).length, 1)
-  assert.equal(restored.visitStatus(visit.id), 'completed')
+  assert.equal(restored.tasks(visit.id).length, 2)
+  assert.equal(restored.visitStatus(visit.id), 'learning')
   assert.equal(restored.tasks(visit.id)[0].lastResult?.score, 100)
+  assert.deepEqual(restored.tasks(visit.id)[1].completedLessonIds, [])
+})
+
+test('三人分别学习答题，全部通过后申请单才完成且重载不串进度', () => {
+  const { store, storage, draft } = setup()
+  draft.people.push(
+    { ...draft.people[0], id: 'p2', name: '李四', phone: '13900139000' },
+    { ...draft.people[0], id: 'p3', name: '王五', phone: '13700137000' }
+  )
+  const visit = store.register(draft)
+  const tasks = store.tasks(visit.id)
+  assert.equal(tasks.length, 3)
+  const plan = getPlan('production')
+  plan.lessons.forEach(l => store.markLesson(tasks[0].id, l.id))
+  store.beginExam(tasks[0].id)
+  store.answer(tasks[0].id, plan.questions[0].id, 0)
+  assert.deepEqual(store.task(tasks[1].id)?.completedLessonIds, [])
+  assert.equal(store.task(tasks[1].id)?.attempt, undefined)
+  assert.throws(() => store.beginExam(tasks[1].id), /视频/)
+  for (const [index, task] of tasks.entries()) {
+    plan.lessons.forEach(l => store.markLesson(task.id, l.id))
+    store.beginExam(task.id)
+    plan.questions.forEach(q => store.answer(task.id, q.id, q.correct))
+    store.finishExam(task.id)
+    assert.equal(store.visitStatus(visit.id), index === 2 ? 'completed' : 'learning')
+    const restored = createVisitStore(storage)
+    assert.equal(restored.visitStatus(visit.id), index === 2 ? 'completed' : 'learning')
+    assert.equal(restored.tasks(visit.id).filter(t => t.lastResult?.passed).length, index + 1)
+  }
+})
+
+test('姓名和手机号共同匹配未完成任务，匹配跨申请单且查询不创建登记', () => {
+  const { store, draft } = setup()
+  draft.people.push({ ...draft.people[0], id: 'p2', name: '李四', phone: '13900139000' })
+  const visitor = store.register(draft)
+  const contractor = store.register({ ...draft, id: 'contractor', type: 'contractor', areaIds: ['office'],
+    people: [{ ...draft.people[0], id: 'worker', trade: '电工' }] })
+  const logistics = store.register({ ...draft, id: 'logistics', type: 'logistics', areaIds: ['office'],
+    vehicles: [{ id: 'driver', driver: '张三', phone: '13800138000', company: '示例物流', plate: '粤B12345' }] })
+  assert.equal(store.pendingTasks('张三', '13900139000').length, 0)
+  assert.equal(store.pendingTasks('李四', '13800138000').length, 0)
+  assert.equal(store.pendingTasks('同名人员', '13800138000').length, 0)
+  const pending = store.pendingTasks(' 张三 ', ' 13800138000 ')
+  assert.equal(pending.length, 5)
+  assert.deepEqual(new Set(pending.map(t => t.visitId)), new Set([visitor.id, contractor.id, logistics.id]))
+  assert.ok(pending.every(t => t.subjectId !== 'p2'))
+  assert.throws(() => store.pendingTasks('', '13800138000'), /姓名/)
+  assert.throws(() => store.pendingTasks('张三', '123'), /手机/)
+  const task = pending.find(t => t.visitId === visitor.id)!
+  const plan = getPlan(task.planId)
+  plan.lessons.forEach(l => store.markLesson(task.id, l.id))
+  store.beginExam(task.id)
+  plan.questions.forEach(q => store.answer(task.id, q.id, q.correct))
+  store.finishExam(task.id)
+  assert.equal(store.pendingTasks('张三', '13800138000').length, 4)
+  assert.equal(store.pendingTasks('李四', '13900139000').length, 1)
+  store.removeVisit(contractor.id)
+  assert.equal(store.pendingTasks('张三', '13800138000').length, 2)
+  assert.equal(store.visits().length, 2)
+})
+
+test('同一司机登记多辆车只生成一套个人课程，不同姓名不能合并', () => {
+  const { store, draft } = setup()
+  draft.type = 'logistics'
+  draft.vehicles = [
+    { id: 'v1', plate: '粤B12345', driver: '张三', phone: '13800138000', company: '示例物流' },
+    { id: 'v2', plate: '粤B67890', driver: '张三', phone: '13800138000', company: '示例物流' },
+    { id: 'v3', plate: '粤B11111', driver: '李四', phone: '13800138000', company: '示例物流' }
+  ]
+  const visit = store.register(draft)
+  assert.equal(store.tasks(visit.id).length, 4)
+  assert.equal(store.pendingTasks('张三', '13800138000').length, 2)
+  assert.equal(store.pendingTasks('李四', '13800138000').length, 2)
+})
+
+test('多人旧共享任务无法归属，不复制通过结果；保留登记并重建个人任务', () => {
+  const { store, storage, data, draft } = setup()
+  draft.people.push({ ...draft.people[0], id: 'p2', name: '李四', phone: '13900139000' })
+  const visit = store.register(draft)
+  const plan = getPlan('production')
+  const answers = Object.fromEntries(plan.questions.map(q => [q.id, q.correct]))
+  const cache = data.get('visitsafe.demo.v1') as { tasks: unknown[] }
+  cache.tasks = [{ id: 'old-shared', visitId: visit.id, planId: 'production', createdAt: visit.createdAt,
+    completedLessonIds: plan.lessons.map(l => l.id),
+    lastResult: { ...gradeExam(plan.questions, answers), submittedAt: visit.createdAt }, completedAt: visit.createdAt }]
+  const restored = createVisitStore(storage)
+  assert.equal(restored.visits().length, 1)
+  assert.equal(restored.tasks(visit.id).length, 2)
+  assert.equal(restored.visitStatus(visit.id), 'learning')
+  assert.ok(restored.tasks(visit.id).every(t => !t.lastResult && !t.completedLessonIds.length))
+})
+
+test('单人旧共享任务可明确归属，保留视频和成绩', () => {
+  const { store, storage, data, draft } = setup()
+  const visit = store.register(draft)
+  const task = store.tasks(visit.id)[0]
+  const plan = getPlan(task.planId)
+  const cache = data.get('visitsafe.demo.v1') as { tasks: unknown[] }
+  const { subjectId: _, ...shared } = task
+  cache.tasks = [{ ...shared, completedLessonIds: plan.lessons.map(l => l.id),
+    lastResult: { ...gradeExam(plan.questions, Object.fromEntries(plan.questions.map(q => [q.id, q.correct]))), submittedAt: visit.createdAt } }]
+  const restored = createVisitStore(storage)
+  assert.equal(restored.tasks(visit.id)[0].subjectId, 'person-1')
+  assert.equal(restored.visitStatus(visit.id), 'completed')
+})
+
+test('同一司机第二辆车的旧任务归到同一人员并保留已通过课程', () => {
+  const { store, storage, data, draft } = setup()
+  draft.type = 'logistics'
+  draft.vehicles = [
+    { id: 'v1', plate: '粤B12345', driver: '张三', phone: '13800138000', company: '示例物流' },
+    { id: 'v2', plate: '粤B67890', driver: '张三', phone: '13800138000', company: '示例物流' }
+  ]
+  const visit = store.register(draft)
+  const cache = data.get('visitsafe.demo.v1') as { tasks: unknown[] }
+  cache.tasks = store.tasks(visit.id).map(task => {
+    const plan = getPlan(task.planId)
+    return { ...task, subjectId: 'v2', completedLessonIds: plan.lessons.map(l => l.id),
+      lastResult: { ...gradeExam(plan.questions, Object.fromEntries(plan.questions.map(q => [q.id, q.correct]))), submittedAt: visit.createdAt } }
+  })
+  const restored = createVisitStore(storage)
+  assert.equal(restored.visitStatus(visit.id), 'completed')
+  assert.equal(restored.tasks(visit.id).length, 2)
+  assert.ok(restored.tasks(visit.id).every(t => t.subjectId === 'v1' && t.lastResult?.score === 100))
 })
 
 test('损坏草稿、未知课程、无效答案被丢弃，其余申请单可正常读取', () => {

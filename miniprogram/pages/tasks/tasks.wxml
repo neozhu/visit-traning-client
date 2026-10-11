@@ -1,14 +1,23 @@
 <view class="page with-footer">
   <view class="row between"><view><view class="eyebrow">SAFETY FIRST</view><view class="title">培训任务</view></view><view class="task-summary"><text>{{completed}}</text> / {{total}}</view></view>
-  <view class="subtitle">培训按申请单完成，同一课程只需学习一次。</view><view class="progress-track section"><view class="progress-fill" style="width: {{progress}}%"></view></view><view class="muted small progress-caption">{{progress}}% 已完成</view>
+  <view class="subtitle">每位人员需独立完成视频学习和答题。</view>
+  <view wx:if="{{subjects.length}}" class="info-banner">{{scopeSubjectId ? '当前人员' : '人员完成'}}：{{completedSubjects}} / {{subjects.length}} 人 · 全部人员通过后申请单才完成</view>
+  <view wx:if="{{subjects.length > 1 && !scopeSubjectId}}" class="section">
+    <view class="section-title">选择学习人员</view>
+    <view class="subject-list section">
+      <button class="subject-card {{!subjectId ? 'selected' : ''}}" data-id="" bindtap="onSubject" hover-class="press" aria-label="全部人员{{!subjectId ? '，已选择' : ''}}"><view>全部人员</view><view class="muted small">依次完成所有任务</view></button>
+      <button wx:for="{{subjects}}" wx:key="id" class="subject-card {{subjectId === item.id ? 'selected' : ''}}" data-id="{{item.id}}" bindtap="onSubject" hover-class="press" aria-label="{{item.name}}，{{item.passed ? '已完成' : '待完成'}}{{subjectId === item.id ? '，已选择' : ''}}"><view class="row between"><text>{{item.name}}</text><text class="status {{item.passed ? 'complete' : 'active'}}">{{item.passed ? '已完成' : '待完成'}}</text></view><view class="muted small">{{item.phone}}</view><view class="muted small">课程 {{item.completed}} / {{item.total}}</view></button>
+    </view>
+  </view>
+  <view class="progress-track section"><view class="progress-fill" style="width: {{progress}}%"></view></view><view class="muted small progress-caption">{{subjectId ? '当前人员' : '全部人员'}}课程 {{completed}} / {{total}} · {{progress}}% 已完成</view>
   <view class="stack section">
     <button wx:for="{{tasks}}" wx:key="id" class="card training-card" data-id="{{item.id}}" bindtap="onTask" hover-class="press">
       <view class="row"><view class="icon-box"><image class="icon" src="/assets/{{item.icon}}.svg" aria-hidden="true" /></view><view class="grow"><view class="section-title">{{item.title}}</view><view class="muted small">{{item.subtitle}}</view></view></view>
-      <view class="divider"></view><view class="row between"><view><view class="muted small">{{item.lessonCount}} 个视频 · {{item.questionCount}} 道题</view><view class="muted small">已观看 {{item.done}} / {{item.lessonCount}}{{item.lastResult ? ' · 上次 ' + item.lastResult.score + ' 分' : ''}}</view></view><text class="status {{item.passed ? 'complete' : 'active'}}">{{item.status}}</text></view>
+      <view class="divider"></view><view class="subject-caption">学习人员：{{item.subjectName}} · {{item.subjectPhone}}</view><view class="row between"><view><view class="muted small">{{item.lessonCount}} 个视频 · {{item.questionCount}} 道题</view><view class="muted small">已观看 {{item.done}} / {{item.lessonCount}}{{item.lastResult ? ' · 上次 ' + item.lastResult.score + ' 分' : ''}}</view></view><text class="status {{item.passed ? 'complete' : 'active'}}">{{item.status}}</text></view>
       <view class="task-action">{{item.action}} <image class="chevron" src="/assets/arrow-right.svg" aria-hidden="true" /></view>
     </button>
   </view>
   <view wx:if="{{!total}}" class="card empty section"><image src="/assets/book.svg" aria-hidden="true" /><view class="section-title">{{missing ? '登记记录已不存在' : '暂无培训任务'}}</view><view class="subtitle">返回首页登记，或在我的记录中查看培训。</view></view>
-  <view wx:if="{{total && completed === total}}" class="info-banner">全部培训已完成，请携带访客凭证并遵守现场安排。</view>
+  <view wx:if="{{total && completed === total}}" class="info-banner">{{visitCompleted ? '本申请单全部人员的培训已完成，请遵守现场安排。' : '当前人员的培训已完成，申请单仍有其他人员待完成。'}}</view>
 </view>
 <view class="footer"><view class="footer-inner"><button class="secondary" bindtap="onRecords">我的记录</button><button wx:if="{{nextId}}" class="primary start-next" bindtap="onStart" hover-class="press">{{completed ? '继续下一项培训' : '开始学习'}}</button><button wx:else class="primary" bindtap="onRecords" hover-class="press">查看完成记录</button></view></view>

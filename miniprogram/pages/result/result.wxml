@@ -1,5 +1,6 @@
 <view class="page with-footer">
   <block wx:if="{{result}}">
+    <view class="muted small center">答题人员：{{subjectName}} · {{subjectPhone}}</view>
     <view class="result-hero"><view class="result-mark {{result.passed ? 'passed' : 'failed'}}"><image src="/assets/{{result.passed ? 'check' : 'alert'}}-white.svg" aria-hidden="true" /></view><view class="result-title {{result.passed ? 'passed-text' : 'failed-text'}}">{{result.passed ? '恭喜您，通过考试！' : '暂未通过，再接再厉'}}</view><view class="subtitle">{{title}}</view><view wx:if="{{result.timedOut}}" class="status red section">考试时间已到，已自动交卷</view></view>
     <view class="card score-card"><view class="row score-row"><view class="grow"><view class="muted">本次成绩</view><view class="score">{{result.score}}<text>分</text></view></view><view class="score-divider"></view><view class="grow"><view class="muted">及格分数</view><view class="pass-score">80<text>分</text></view></view></view><view class="answer-summary row between"><text>答对 <text class="green">{{correctCount}}</text> 题</text><text>答错 <text class="red-text">{{result.wrongIds.length}}</text> 题</text></view></view>
     <view wx:if="{{!result.passed}}" class="info-banner">已完成的视频会保留，重新考试会清空答案并重新计时。</view>

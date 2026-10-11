@@ -1,5 +1,5 @@
 import { getPlan, matchPlans } from '../data/catalog'
-import { Draft, ENTRY_LABELS, EntryType, ExamResult, TrainingTask, Visit, gradeExam, makeId, normalizePlate, validateDraft } from '../models/visit'
+import { Draft, ENTRY_LABELS, EntryType, ExamResult, TrainingTask, Visit, getTrainingSubjects, gradeExam, makeId, normalizePlate, validateDraft } from '../models/visit'
 
 export interface StoragePort {
   read(key: string): unknown
@@ -93,21 +93,26 @@ function load(storage: StoragePort): State {
     value.tasks.map(updateLegacyQuestions).filter(validTask).forEach(raw => {
       const visit = next.visits.find(v => v.id === raw.visitId)
       if (!visit || !requiredPlans(visit).includes(raw.planId)) return
-      const task = clone(raw)
-      const index = next.tasks.findIndex(t => t.visitId === task.visitId && t.planId === task.planId)
+      const subjects = getTrainingSubjects(visit)
+      const vehicle = visit.type === 'logistics' ? visit.vehicles.find(v => v.id === raw.subjectId) : undefined
+      const driver = vehicle && subjects.find(s => s.name === vehicle.driver.trim() && s.phone === vehicle.phone.trim())
+      const subjectId = driver?.id || raw.subjectId || (subjects.length === 1 ? subjects[0].id : '')
+      if (!subjects.some(s => s.id === subjectId)) return
+      const task = { ...clone(raw), subjectId }
+      const index = next.tasks.findIndex(t => t.visitId === task.visitId && t.subjectId === task.subjectId && t.planId === task.planId)
       if (index < 0) { next.tasks.push(task); return }
-      // Older demo versions created one copy per person. Keep the best shared progress.
+      // Only merge duplicate copies belonging to the same person and course.
       const previous = next.tasks[index]
       const rank = (t: TrainingTask) => t.lastResult?.passed ? 10000 : t.attempt ? 1000 + Object.keys(t.attempt.answers).length : t.completedLessonIds.length
       const selected = rank(task) > rank(previous) ? task : previous
       selected.completedLessonIds = [...new Set([...previous.completedLessonIds, ...task.completedLessonIds])]
       next.tasks[index] = selected
     })
-    next.visits.forEach(visit => requiredPlans(visit).forEach(planId => {
-      if (!next.tasks.some(t => t.visitId === visit.id && t.planId === planId)) {
-        next.tasks.push({ id: makeId('task'), visitId: visit.id, planId, createdAt: visit.createdAt, completedLessonIds: [] })
+    next.visits.forEach(visit => getTrainingSubjects(visit).forEach(subject => requiredPlans(visit).forEach(planId => {
+      if (!next.tasks.some(t => t.visitId === visit.id && t.subjectId === subject.id && t.planId === planId)) {
+        next.tasks.push({ id: makeId('task'), visitId: visit.id, subjectId: subject.id, planId, createdAt: visit.createdAt, completedLessonIds: [] })
       }
-    }))
+    })))
     return next
   } catch (_) { /* An unreadable cache should not prevent opening the demo. */ }
   return empty()
@@ -145,16 +150,26 @@ export function createVisitStore(storage: StoragePort, clock: () => number = Dat
         const visit: Visit = relevantRoster({ ...clone(draft), areaIds: draft.type === 'training' ? [] : [...new Set(draft.areaIds)], createdAt: clock() })
         visit.vehicles.forEach(v => { v.plate = normalizePlate(v.plate) })
         next.visits.unshift(visit)
-        matchPlans(visit.type, visit.areaIds).forEach(planId => {
-          next.tasks.push({ id: makeId('task'), visitId: visit.id, planId, createdAt: clock(), completedLessonIds: [] })
-        })
+        getTrainingSubjects(visit).forEach(subject => matchPlans(visit.type, visit.areaIds).forEach(planId => {
+          next.tasks.push({ id: makeId('task'), visitId: visit.id, subjectId: subject.id, planId, createdAt: clock(), completedLessonIds: [] })
+        }))
         delete next.drafts[draft.type]
         return visit
       })
     },
     visits(): Visit[] { return clone(state.visits) },
     visit(id: string): Visit | undefined { const value = state.visits.find(v => v.id === id); return value && clone(value) },
-    tasks(visitId?: string): TrainingTask[] { return clone(state.tasks.filter(t => !visitId || t.visitId === visitId)) },
+    tasks(visitId?: string, subjectId?: string): TrainingTask[] {
+      return clone(state.tasks.filter(t => (!visitId || t.visitId === visitId) && (!subjectId || t.subjectId === subjectId)))
+    },
+    pendingTasks(name: string, phone: string): TrainingTask[] {
+      const identity = { name: name.trim(), phone: phone.trim() }
+      if (!identity.name) throw new Error('请输入登记时的姓名')
+      if (!/^1[3-9]\d{9}$/.test(identity.phone)) throw new Error('请输入登记时的11位有效手机号码')
+      return clone(state.tasks.filter(task => !task.lastResult?.passed && state.visits.some(visit =>
+        visit.id === task.visitId && getTrainingSubjects(visit).some(subject => subject.id === task.subjectId
+          && subject.name === identity.name && subject.phone === identity.phone))))
+    },
     task(id: string): TrainingTask | undefined { const value = state.tasks.find(t => t.id === id); return value && clone(value) },
     visitStatus(id: string): 'completed' | 'learning' {
       const tasks = state.tasks.filter(t => t.visitId === id)

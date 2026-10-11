@@ -13,8 +13,8 @@ Page({
   onShow() { this.setData({ pendingCount: store.tasks().filter(t => !t.lastResult?.passed).length }) },
   onEntry(event: WechatMiniprogram.BaseEvent) {
     const type = event.currentTarget.dataset.type as EntryType
-    wx.navigateTo({ url: `/pages/registration/registration?type=${type}` })
+    wx.navigateTo({ url: type === 'training' ? '/pages/training/training' : `/pages/registration/registration?type=${type}` })
   },
-  onResume() { wx.navigateTo({ url: '/pages/tasks/tasks' }) },
+  onResume() { wx.navigateTo({ url: '/pages/training/training' }) },
   onRecords() { wx.switchTab({ url: '/pages/logs/logs' }) }
 })

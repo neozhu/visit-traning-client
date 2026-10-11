@@ -3,6 +3,7 @@
     "pages/index/index",
     "pages/logs/logs",
     "pages/registration/registration",
+    "pages/training/training",
     "pages/tasks/tasks",
     "pages/learn/learn",
     "pages/exam/exam",
@@ -20,7 +21,7 @@
   "componentFramework": "glass-easel",
   "lazyCodeLoading": "requiredComponents",
   "tabBar": {
-    "color": "#68758a", "selectedColor": "#1768ee", "backgroundColor": "#ffffff", "borderStyle": "white",
+    "color": "#68758a", "selectedColor": "#246BFD", "backgroundColor": "#ffffff", "borderStyle": "white",
     "list": [
       { "pagePath": "pages/index/index", "text": "首页", "iconPath": "assets/home.png", "selectedIconPath": "assets/home-active.png" },
       { "pagePath": "pages/logs/logs", "text": "我的", "iconPath": "assets/user.png", "selectedIconPath": "assets/user-active.png" }

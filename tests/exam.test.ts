@@ -6,10 +6,14 @@ test('选择答案自动进入下一题，错题可返回修改且按最终答�
   const cache = new Map<string, unknown>()
   const toasts: string[] = []
   let redirect = ''
+  let failWrite = false
   const runtime = globalThis as any
   runtime.Page = (page: unknown) => { definition = page }
   runtime.wx = {
-    getStorageSync: (key: string) => cache.get(key), setStorageSync: (key: string, value: unknown) => cache.set(key, value),
+    getStorageSync: (key: string) => cache.get(key), setStorageSync: (key: string, value: unknown) => {
+      if (failWrite) throw new Error('存储空间不足')
+      cache.set(key, value)
+    },
     showToast: (value: { title: string }) => { toasts.push(value.title) },
     showModal: (value: { success: (result: { confirm: boolean }) => void }) => value.success({ confirm: true }),
     redirectTo: (value: { url: string }) => { redirect = value.url }
@@ -51,4 +55,20 @@ test('选择答案自动进入下一题，错题可返回修改且按最终答�
   page.onSubmit()
   assert.equal(store.task(task.id)?.lastResult?.score, 100)
   assert.match(redirect, /pages\/result\/result/)
+
+  const secondDraft = store.draft('visitor')
+  Object.assign(secondDraft, { noticeAccepted: true, areaIds: ['production'], people: draft.people })
+  const personal = store.tasks(store.register(secondDraft).id)[0]
+  for (const lesson of ['production-safety', 'production-ppe']) store.markLesson(personal.id, lesson)
+  failWrite = true
+  const recovery = { ...definition, data: structuredClone(definition.data), setData(patch: object) { Object.assign(this.data, patch) } }
+  recovery.onLoad({ taskId: personal.id })
+  assert.equal(recovery.data.valid, false)
+  assert.match(recovery.data.error, /存储空间不足/)
+  runtime.getCurrentPages = () => [{ route: 'pages/exam/exam' }]
+  recovery.onTasks()
+  assert.equal(redirect, `/pages/tasks/tasks?visitId=${personal.visitId}&subjectId=p`)
+  recovery.setData({ taskId: 'deleted-task' })
+  recovery.onTasks()
+  assert.equal(redirect, '/pages/training/training')
 })

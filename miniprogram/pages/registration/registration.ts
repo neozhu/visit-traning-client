@@ -1,5 +1,5 @@
 import { AREAS, getPlan, matchPlans } from '../../data/catalog'
-import { Draft, ENTRY_LABELS, EntryType, Person, Vehicle, makeId, maskPhone, normalizePlate, validateDraft } from '../../models/visit'
+import { Draft, ENTRY_LABELS, EntryType, Person, Vehicle, getTrainingSubjects, makeId, maskPhone, normalizePlate, validateDraft } from '../../models/visit'
 import { showError, store } from '../../services/store'
 
 const emptyForm = () => ({ id: '', name: '', phone: '', company: '', trade: '', plate: '', driver: '' })
@@ -12,10 +12,10 @@ Page({
     editorOpen: false, editId: '', form: emptyForm(), error: '', submitting: false
   },
   onLoad(query: Record<string, string>) {
+    if (query.type === 'training') { wx.redirectTo({ url: '/pages/training/training' }); return }
     const type: EntryType = Object.prototype.hasOwnProperty.call(ENTRY_LABELS, query.type) ? query.type as EntryType : 'visitor'
-    let draft = store.draft(type)
-    if (type === 'training') draft = { ...draft, noticeAccepted: true, areaIds: [], vehicles: [] }
-    const title = type === 'training' ? '学习培训' : `${ENTRY_LABELS[type]}登记`
+    const draft = store.draft(type)
+    const title = `${ENTRY_LABELS[type]}登记`
     this.setData({ type, title, noticeOpen: !draft.noticeAccepted, noticeChecked: draft.noticeAccepted })
     wx.setNavigationBarTitle({ title })
     this.sync(draft)
@@ -27,7 +27,7 @@ Page({
     const planIds = matchPlans(draft.type, draft.areaIds)
     this.setData({ draft, rows, areas: AREAS.map(a => ({ ...a, selected: draft.areaIds.includes(a.id) })),
       selectedAreas: AREAS.filter(a => draft.areaIds.includes(a.id)).map(a => a.name).join('、'),
-      planTitles: planIds.map(id => getPlan(id).title), taskCount: planIds.length, error: '' })
+      planTitles: planIds.map(id => getPlan(id).title), taskCount: getTrainingSubjects(draft).length * planIds.length, error: '' })
   },
   persist(draft: Draft) { store.saveDraft(draft); this.sync(draft) },
   noop() {},
@@ -104,8 +104,7 @@ Page({
     this.setData({ submitting: true })
     try {
       const visit = store.register(this.data.draft)
-      const task = store.tasks(visit.id)[0]
-      wx.redirectTo({ url: this.data.type === 'training' ? `/pages/learn/learn?taskId=${task.id}` : `/pages/tasks/tasks?visitId=${visit.id}` })
+      wx.redirectTo({ url: `/pages/tasks/tasks?visitId=${visit.id}` })
     }
     catch (error) { this.setData({ submitting: false, error: error instanceof Error ? error.message : '请检查登记信息' }); showError(error) }
   }

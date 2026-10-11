@@ -10,9 +10,9 @@
 
 ## Demo decisions
 
-- Four entry types: training, visitor, logistics, contractor. Training is a standalone multi-person form → general safety video → quiz flow, without a visitor notice, area selection or review step. Existing applications resume from the home pending link or records.
+- Four entry types: training, visitor, logistics, contractor. Training looks up existing pending tasks by the registered name and phone, then resumes that person's courses on a selected application; it does not create a new registration. The other three registration flows retain their existing nodes.
 - Visitor/logistics/contractor registration has notice confirmation, editable people/vehicles, multi-select areas, and a final review. Logistics requires driver and vehicle information; contractors require trade information.
-- Each application receives one task per chosen area plan and applicable logistics/construction safety plan. People and vehicles on that application share its completion.
+- Each person receives one task per chosen area plan and applicable logistics/construction safety plan. Drivers are identified by name and phone; the same driver on multiple vehicles in an application has one course set. Video and exam progress are independent for every person, and an application completes only after all people pass all required courses.
 - Each plan has short local demonstration videos and 5 single-choice questions (20 points each). Video playback or a six-second fallback countdown after loading failure must finish before an exam starts; pass mark is 80, time limit is 15 minutes.
 - Retakes retain completed videos but reset answers and the timer. Back navigation, reload and expired exams retain consistent state.
 - Records start empty; an explicit fill-demo-data button supplies fictitious registration fields. No real personal data or remote media is needed.
@@ -40,7 +40,7 @@ Files: app shell, `pages/index`, `pages/registration`, existing `pages/logs`, `p
 
 Files: `pages/tasks`, `pages/learn`, `pages/exam`, `pages/result`, `pages/completion`, local media.
 
-- [ ] Implement application-level tasks, native local-video playback and completion gating.
+- [ ] Implement person-level tasks, name/phone lookup, participant selection, native local-video playback and completion gating.
 - [ ] Implement question navigation, answer retention, countdown/timeout, grading, wrong-answer review, retake and training completion.
 - [ ] Verify a failed attempt followed by a passing attempt and persisted completion.
 

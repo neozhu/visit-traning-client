@@ -6,7 +6,7 @@ const { call, data, tap, input, evaluate, screenshot, jsonFile, project } = requ
 const report = []
 let nativeVideos = 0
 let fallbackVideos = 0
-const readState = () => evaluate("function(){ return wx.getStorageSync('visitsafe.demo.v1'); }")
+const readState = () => evaluate("function(){ return { state: wx.getStorageSync('visitsafe.demo.v1') }; }").state
 const writeState = state => evaluate("function(value){ wx.setStorageSync('visitsafe.demo.v1', value); return true; }", [state])
 const original = readState()
 fs.mkdirSync(path.join(project, 'doc', 'verification-artifacts'), { recursive: true })
@@ -48,34 +48,21 @@ try {
   assert.ok(Math.abs(size.width - parent.width) < 2)
   screenshot('home-final')
   record('入口卡片占满容器宽度，首页正常渲染')
+  tap('.entry.training')
+  tap('.find-training')
+  assert.match(data().error, /姓名/)
+  input('input[data-field="name"]', '未登记人员')
+  input('input[data-field="phone"]', '13800138000')
+  tap('.find-training')
+  assert.deepEqual(data().matches, [])
+  assert.equal(readState().visits.length, 0)
+  screenshot('training-lookup-empty')
+  record('学习培训空记录、必填校验及无匹配结果正常，不创建登记')
   let failureChecked = false
-  for (const type of ['visitor', 'training', 'logistics', 'contractor']) {
+  for (const type of ['visitor', 'logistics', 'contractor']) {
     navigateHome()
     tap('.entry.' + type)
     let draftId
-    if (type === 'training') {
-      assert.equal(data().noticeOpen, false)
-      assert.deepEqual(data().draft.areaIds, [])
-      tap('.submit-visit')
-      assert.match(data().error, /人员/)
-      for (const [name, phone] of [['培训学员', '13600136000'], ['第二位学员', '13500135000']]) {
-        tap('.add-entry')
-        input('input[data-field="name"]', name)
-        input('input[data-field="phone"]', phone)
-        input('input[data-field="company"]', '示例培训单位')
-        tap('.save-entry')
-      }
-      assert.equal(data().rows.length, 2)
-      call('automation_navigate', { action: 'navigateBack', delta: 1 })
-      tap('.entry.training')
-      assert.equal(data().rows.length, 2)
-      assert.equal(data().rows[0].name, '培训学员')
-      screenshot('training-form')
-      draftId = data().draft.id
-      tap('.submit-visit')
-      assert.equal(data(0.3).title, '通用安全培训')
-      record('学习培训独立入口：信息保留、无区域选择、直接进入视频')
-    } else {
     const notice = data()
     assert.equal(notice.noticeOpen, true)
     assert.equal(notice.noticeChecked, false)
@@ -109,6 +96,12 @@ try {
       tap('.delete-entry[data-id="' + third + '"]')
       assert.equal(data(0.2).rows.length, 2)
       record('登记人员新增、编辑、确认删除及空列表校验正常')
+      tap('.add-entry')
+      input('input[data-field="name"]', '王五')
+      input('input[data-field="phone"]', '13700137000')
+      input('input[data-field="company"]', '示例测试单位')
+      tap('.save-entry')
+      assert.equal(data().rows.length, 3)
     }
     tap('.next')
     assert.equal(data().step, 2)
@@ -118,7 +111,7 @@ try {
     if (type === 'visitor') tap('.area-card[data-id="research"]')
     const selected = data().draft.areaIds
     tap('.previous')
-    assert.equal(data().rows.length, 2)
+    assert.equal(data().rows.length, type === 'visitor' ? 3 : 2)
     tap('.next')
     assert.deepEqual(data().draft.areaIds, selected)
     if (type === 'visitor') screenshot('areas')
@@ -127,16 +120,49 @@ try {
     tap('.submit-visit')
     const listing = data(0.3)
     assert.ok(listing.total > 0)
-    }
     const tasks = readState().tasks.filter(t => t.visitId === draftId)
-    assert.equal(tasks.length, type === 'training' ? 1 : 2)
+    assert.equal(tasks.length, type === 'visitor' ? 6 : 4)
+    assert.equal(data().subjects.length, type === 'visitor' ? 3 : 2)
     if (type === 'visitor') screenshot('tasks')
+    let currentSubject = ''
     for (const task of tasks) {
-      if (type !== 'training') tap('.training-card[data-id="' + task.id + '"]')
+      if (task.subjectId !== currentSubject) {
+        if (!currentSubject) {
+          tap('.subject-card[data-id="' + task.subjectId + '"]')
+          assert.equal(data().total, 2)
+        } else {
+          const snapshot = readState()
+          const visit = snapshot.visits.find(v => v.id === draftId)
+          const subject = type === 'logistics' ? visit.vehicles.find(v => v.id === task.subjectId) : visit.people.find(p => p.id === task.subjectId)
+          assert.ok(snapshot.tasks.filter(t => t.visitId === draftId && t.subjectId === currentSubject).every(t => t.lastResult?.passed))
+          assert.ok(snapshot.tasks.filter(t => t.visitId === draftId && t.subjectId === task.subjectId).every(t => !t.lastResult && !t.completedLessonIds.length))
+          assert.equal(data().visitCompleted, false)
+          navigateHome()
+          tap('.entry.training')
+          input('input[data-field="name"]', type === 'logistics' ? subject.driver : subject.name)
+          input('input[data-field="phone"]', '13000000000')
+          tap('.find-training')
+          assert.equal(data().matches.length, 0)
+          input('input[data-field="phone"]', subject.phone)
+          tap('.find-training')
+          const matched = data()
+          assert.equal(matched.matches.length, 1)
+          assert.equal(matched.matches[0].visitId, draftId)
+          assert.equal(matched.matches[0].subjectId, task.subjectId)
+          if (type === 'visitor') screenshot('training-lookup-match')
+          tap('.training-match[data-visit-id="' + draftId + '"]')
+          assert.equal(data().scopeSubjectId, task.subjectId)
+          assert.ok(data().tasks.every(t => t.subjectId === task.subjectId))
+          record(type + ': 其他人员通过姓名和手机号查找并继续原任务，进度独立')
+        }
+        currentSubject = task.subjectId
+      }
+      tap('.training-card[data-id="' + task.id + '"]')
       let lesson = data()
       assert.equal(lesson.allDone, false)
+      assert.ok(lesson.subjectName)
       const disabled = call('automation_element_action', { action: 'property', selector: '.begin-exam', name: 'disabled' })
-      assert.equal(disabled, true)
+      assert.ok(disabled === true || disabled === 'true')
       for (let index = 0; index < lesson.lessons.length; index++) {
         if (index !== data().selected) tap('.lesson-row[data-index="' + index + '"]')
         if (type === 'visitor' && !failureChecked && index === 0) {
@@ -192,18 +218,29 @@ try {
       fillExam(false)
       if (!failureChecked) screenshot('result-passed')
       tap('.complete-training')
-      assert.equal(data().passed, true)
+      assert.equal(call('automation_page_action', { action: 'getData', 'wait-for-selector': '.completion-hero' }).data.passed, true)
       if (!failureChecked) screenshot('completion')
       failureChecked = true
       tap('.return-tasks')
     }
-    assert.equal(data().completed, tasks.length)
+    assert.equal(data().completed, 2)
+    assert.equal(data().visitCompleted, true)
+    assert.ok(readState().tasks.filter(t => t.visitId === draftId).every(t => t.lastResult?.passed))
+    navigateHome()
+    tap('.entry.training')
+    const visit = readState().visits.find(v => v.id === draftId)
+    const subject = type === 'logistics' ? visit.vehicles[0] : visit.people[0]
+    input('input[data-field="name"]', type === 'logistics' ? subject.driver : subject.name)
+    input('input[data-field="phone"]', subject.phone)
+    tap('.find-training')
+    assert.equal(data().matches.length, 0)
+    record(type + ': 全部人员通过后整单完成，已完成人员不再出现在待学习查询中')
     navigateHome()
     call('automation_navigate', { action: 'switchTab', url: '/pages/logs/logs' })
     assert.equal(data().visits.find(v => v.id === draftId).passed, true)
     tap('.record-card[data-id="' + draftId + '"]')
     assert.equal(data().visit.passed, true)
-    record(type + ': ' + (type === 'training' ? '人员信息→直接学习' : '须知→多人/多车→区域') + '→本地视频→考试→结果→完成→本地记录通过')
+    record(type + ': 须知→多人/多车→区域→逐人视频与考试→结果→完成→本地记录通过')
   }
   call('automation_navigate', { action: 'switchTab', url: '/pages/logs/logs' })
   input('.search-input', '粤B12345')
@@ -212,8 +249,8 @@ try {
   screenshot('records')
   call('simulator_refresh')
   call('automation_navigate', { action: 'switchTab', url: '/pages/logs/logs', wait: 1 })
-  assert.equal(data().visitCount, 4)
-  assert.equal(data().completeCount, 7)
+  assert.equal(data().visitCount, 3)
+  assert.equal(data().completeCount, 14)
   record('姓名/车牌搜索、重新编译后的记录与培训进度持久化通过')
   const consoleErrors = call('get_simulator_console', { command: 'grep -i error' })
   fs.writeFileSync(path.join(project, 'doc', 'verification-artifacts', 'console.txt'), JSON.stringify(consoleErrors, null, 2))

@@ -1,28 +1,40 @@
-.hero { height: 420rpx; position: relative; overflow: hidden; background: #e5f1ff; }
-.factory-scene { position: absolute; width: 100%; height: 100%; }
-.hero-content { position: relative; padding: 36rpx 40rpx; }
-.hero-label { font-size: 18rpx; letter-spacing: 3rpx; color: #406188; font-weight: 600; }
-.brand { font-size: 70rpx; letter-spacing: -3rpx; font-weight: 800; line-height: 1.2; margin-top: 20rpx; display: flex; align-items: baseline; }
-.brand-dot { background: #1768ee; border-radius: 50%; width: 12rpx; height: 12rpx; margin-left: 8rpx; }
-.hero-title { font-size: 30rpx; font-weight: 600; margin-top: 12rpx; }
-.hero-note { color: #4b6580; font-size: 22rpx; margin-top: 8rpx; }
-.site-badge { position: absolute; left: 40rpx; bottom: 22rpx; display: flex; align-items: center; gap: 10rpx; padding: 8rpx 18rpx; background: rgba(255,255,255,.95); border-radius: 30rpx; font-size: 21rpx; color: #325676; }
-.live-dot { width: 10rpx; height: 10rpx; background: #1d9654; border-radius: 50%; }
-.home-content { padding: 28rpx 0 30rpx; max-width: 1100rpx; margin: 0 24rpx; }
-.home-heading { margin-bottom: 24rpx; }
-.home-heading .small { font-size: 21rpx; }
-.entry-list { display: flex; flex-direction: column; gap: 18rpx; width: 100%; }
-button.entry { display: flex; align-items: center; gap: 24rpx; padding: 22rpx 28rpx; width: 100% !important; max-width: none; margin: 0 !important; align-self: stretch; min-height: 132rpx; text-align: left; color: white; border-radius: 24rpx; box-shadow: 0 8rpx 20rpx rgba(22,63,119,.09); }
-.entry.training { background: linear-gradient(110deg,#186cf3,#287ff5); }
-.entry.visitor { background: linear-gradient(110deg,#16874a,#209854); }
-.entry.logistics { background: linear-gradient(110deg,#ae520b,#c26413); }
-.entry.contractor { background: linear-gradient(110deg,#7150db,#8462e3); }
-.entry-icon { width: 78rpx; height: 78rpx; background: rgba(255,255,255,.14); border: 1rpx solid rgba(255,255,255,.18); border-radius: 24rpx; display: flex; align-items: center; justify-content: center; }
-.entry-icon image { width: 46rpx; height: 46rpx; }
-.entry-title { font-size: 36rpx; font-weight: 650; }
-.entry-description { font-size: 22rpx; font-weight: 400; margin-top: 6rpx; }
-.entry-arrow { width: 40rpx; height: 40rpx; flex-shrink: 0; opacity: .8; }
-.home-assurance { margin-top: 32rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; color: #65748a; font-size: 22rpx; }
-.home-assurance image { width: 28rpx; height: 28rpx; }
-.resume { margin-top: 24rpx; display: flex; align-items: center; text-align: left; padding: 20rpx 24rpx; background: #edf3ff; border: 1rpx solid #cfdef8; }
-.resume-title { color: #245ba5; font-size: 28rpx; font-weight: 600; }
+.home { --primary: #246BFD; --text: #192B43; color: var(--text); background: #F5F7FB; }
+.hero { height: 352rpx; min-height: 176px; max-height: 208px; position: relative; overflow: hidden; background: linear-gradient(120deg, #F0F5FC, #E6EEF8); border-bottom: 1rpx solid #E2EAF4; }
+.factory-scene { position: absolute; right: 0; bottom: 0; width: 100%; height: 100%; opacity: .7; }
+.hero::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: linear-gradient(90deg, rgba(240,245,252,.96), rgba(240,245,252,.72) 44%, rgba(230,238,248,0) 78%); pointer-events: none; }
+.hero-content { position: relative; z-index: 1; padding: 28rpx 36rpx; }
+.hero-label { font-size: 10px; letter-spacing: 2rpx; color: #667C97; font-weight: 500; }
+.brand { font-size: 32px; letter-spacing: -1px; font-weight: 750; line-height: 1.2; margin-top: 16rpx; display: flex; align-items: baseline; color: #192B43; }
+.brand-dot { background: #246BFD; border-radius: 50%; width: 10rpx; height: 10rpx; margin-left: 8rpx; }
+.hero-title { font-size: 14px; font-weight: 600; margin-top: 10rpx; }
+.hero-note { color: #62758D; font-size: 12px; margin-top: 6rpx; }
+.site-badge { position: absolute; z-index: 1; left: 36rpx; bottom: 20rpx; display: flex; align-items: center; gap: 10rpx; padding: 6rpx 14rpx; background: rgba(255,255,255,.86); border: 1rpx solid rgba(216,228,241,.8); border-radius: 12rpx; font-size: 11px; color: #526A83; }
+.live-dot { width: 8rpx; height: 8rpx; background: #398578; border-radius: 50%; }
+.home-content { width: calc(100% - 64rpx); max-width: 600px; padding: 30rpx 0 calc(28rpx + env(safe-area-inset-bottom)); margin: 0 auto; }
+.home-heading { margin-bottom: 24rpx; gap: 12rpx; flex-wrap: wrap; }
+.home-heading .section-title { font-size: 19px; line-height: 1.4; font-weight: 650; color: #192B43; }
+.home-heading .small { font-size: 12px; color: #6B7B90; }
+.entry-list { display: flex; flex-direction: column; gap: 20rpx; width: 100%; }
+button.entry { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; width: 100% !important; max-width: none; margin: 0 !important; align-self: stretch; min-height: 140rpx; text-align: left; color: #192B43; background: #FFFFFF; border: 1rpx solid #E3EAF3; border-radius: 14px; box-shadow: 0 2rpx 8rpx rgba(25,43,67,.035); }
+.entry.training { border-color: #DCE6F6; }
+.entry-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.training .entry-icon { background: #EBF2FF; }
+.visitor .entry-icon { background: #EBF6F3; }
+.logistics .entry-icon { background: #FBF4E9; }
+.contractor .entry-icon { background: #F2F0FA; }
+.entry-icon image { width: 22px; height: 22px; }
+.entry-title { font-size: 18px; font-weight: 600; line-height: 1.4; }
+.entry-description { color: #66778E; font-size: 13px; font-weight: 400; line-height: 1.5; margin-top: 6rpx; }
+.entry-arrow { width: 16px; height: 16px; flex-shrink: 0; opacity: .5; }
+.home-assurance { margin-top: 28rpx; display: flex; align-items: center; justify-content: center; gap: 10rpx; color: #6B7B90; font-size: 11px; }
+.home-assurance image { width: 24rpx; height: 24rpx; opacity: .65; }
+.resume { width: 100% !important; margin: 24rpx 0 0 !important; display: flex; align-items: center; gap: 16rpx; text-align: left; padding: 22rpx 24rpx; background: #EDF3FF; border: 1rpx solid #DAE6FA; border-radius: 14px; }
+.resume-title { color: #246BFD; font-size: 15px; line-height: 1.4; font-weight: 600; }
+.resume .muted { color: #66778E; font-size: 12px; margin-top: 6rpx; }
+@media (max-width: 350px) {
+  .hero-content { padding-top: 24rpx; }
+  .home-content { width: calc(100% - 48rpx); }
+  button.entry { padding: 22rpx; gap: 20rpx; min-height: 150rpx; }
+  .entry-title { font-size: 17px; }
+  .entry-description { font-size: 12px; }
+}

@@ -7,7 +7,7 @@ export const AREAS = [
 ]
 
 export const ENTRY_DESCRIPTIONS: Record<EntryType, string> = {
-  training: '填写信息，直接开始安全培训', visitor: '来访人员登记与培训',
+  training: '姓名和手机号查找待完成培训', visitor: '来访人员登记与培训',
   logistics: '司机及车辆登记与培训', contractor: '施工人员登记与培训'
 }
 
