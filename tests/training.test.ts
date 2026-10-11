@@ -27,6 +27,7 @@ test('学习入口查询已有申请单，人员筛选和返回刷新保持个�
   assert.equal(navigation, '/pages/registration/registration?type=visitor')
 
   const draft = store.draft('visitor')
+  Object.assign(draft, { appointmentDate: '2030-01-02', timeSlot: '08:30–12:00', hostName: '陈经理', visitReason: '会议' })
   Object.assign(draft, { noticeAccepted: true, areaIds: ['production', 'research'], people: [
     { id: 'p1', name: '张三', phone: '13800138000', company: '示例公司', trade: '' },
     { id: 'p2', name: '李四', phone: '13900139000', company: '示例公司', trade: '' },

@@ -6,10 +6,36 @@
 .step.current .step-number, .step.done .step-number { background: var(--primary); border-color: var(--primary); color: white; }
 .step-line { height: 2rpx; background: #d7dfeb; flex: 1; margin-top: 24rpx; }
 .step-line.done { background: var(--primary); }
-.roster-card { padding: 24rpx; }
+.registration-page, .registration-footer, .overlay { --primary: #246BFD; --text: #192B43; }
+.registration-page { max-width: 600px; }
+.registration-intro { margin: 24rpx 0 28rpx; }
+.registration-intro .title { font-size: 22px; }
+.form-section { margin-top: 24rpx; padding: 28rpx; border-radius: 14px; box-shadow: 0 2rpx 8rpx rgba(25,43,67,.025); }
+.form-heading { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.form-heading .section-title { font-size: 17px; color: #192B43; }
+.form-hint, .form-note { color: #687B91; font-size: 12px; line-height: 1.6; }
+.form-note { margin-top: 14rpx; }
+.required { color: #B8453B; margin-left: 4rpx; }
+.select-control { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; min-height: 94rpx; padding: 18rpx 22rpx; border: 2rpx solid #E1E7F0; border-radius: 8px; background: #F7F9FC; font-size: 15px; }
+.select-control image { width: 16px; height: 16px; flex-shrink: 0; opacity: .6; transform: rotate(90deg); }
+.placeholder { color: #7D8CA0; }
+.form-section .field-label { font-size: 13px; color: #364C65; }
+.form-section .field input { font-size: 15px; border-radius: 8px; background: #F7F9FC; }
+.field input.invalid, .select-control.invalid { border-color: #CF6A60; }
+.field-error { color: #B43A32; font-size: 12px; margin-top: 10rpx; }
+.optional-tag { font-size: 12px; color: #61768D; background: #F1F5FA; padding: 4rpx 12rpx; border-radius: 6px; }
+.add-list-button { width: 100% !important; margin: 22rpx 0 0 !important; min-height: 88rpx; padding: 20rpx 16rpx; border: 1rpx solid #DCE7F8; border-radius: 8px; background: #F4F8FF; color: #246BFD; font-size: 14px; }
+.roster-list { gap: 0; }
+.roster-card { padding: 24rpx 0 16rpx; border-bottom: 1rpx solid #E8EEF5; }
+.roster-card:last-child { border-bottom: 0; }
+.roster-empty { text-align: center; color: #687B91; padding: 32rpx 0 8rpx; font-size: 14px; }
+.inherited-company { background: #F4F7FB; padding: 20rpx 22rpx; border-radius: 8px; color: #516880; font-size: 14px; }
+.summary-field { display: flex; align-items: flex-start; justify-content: space-between; gap: 24rpx; margin-top: 20rpx; font-size: 14px; }
+.summary-field .muted { flex-shrink: 0; font-size: 13px; }
+.summary-value { text-align: right; min-width: 0; word-break: break-all; }
 .list-number { width: 48rpx; height: 54rpx; background: #edf2f8; border-radius: 12rpx; text-align: center; line-height: 54rpx; align-self: flex-start; }
-.person-name { font-weight: 600; font-size: 32rpx; }
-.entry-actions { justify-content: flex-end; margin: 8rpx -12rpx -20rpx; }
+.person-name { font-weight: 600; font-size: 16px; }
+.entry-actions { justify-content: flex-end; margin: 8rpx -12rpx -12rpx; }
 .entry-actions button { min-width: 100rpx; }
 .demo-data { margin: 16rpx auto 0; }
 .area-card { display: flex; align-items: center; gap: 22rpx; text-align: left; padding: 24rpx; border: 2rpx solid #e4eaf3; }

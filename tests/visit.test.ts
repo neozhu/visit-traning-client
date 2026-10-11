@@ -16,6 +16,8 @@ function setup() {
   draft.noticeAccepted = true
   draft.people = [{ id: 'person-1', name: '张三', phone: '13800138000', company: '示例制造有限公司', trade: '' }]
   draft.areaIds = ['production']
+  Object.assign(draft, { appointmentDate: '2030-01-02', timeSlot: '08:30–12:00', hostName: '陈经理', visitReason: '会议',
+    projectName: '设备安装', workArea: '一号车间', contractorCompany: '示例制造有限公司', supervisor: '王负责人' })
   return { store, storage, data, draft, advance: (ms: number) => { now += ms } }
 }
 

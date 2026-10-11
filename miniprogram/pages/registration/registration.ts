@@ -1,6 +1,7 @@
 import { AREAS, getPlan, matchPlans } from '../../data/catalog'
 import { Draft, ENTRY_LABELS, EntryType, Person, Vehicle, getTrainingSubjects, makeId, maskPhone, normalizePlate, validateDraft } from '../../models/visit'
 import { showError, store } from '../../services/store'
+import { REGISTRATION_FIELDS, RegistrationField, TIME_SLOTS, VISIT_REASONS, calendarDate, getRegistrationErrors, getRegistrationSections } from '../../models/registration'
 
 const emptyForm = () => ({ id: '', name: '', phone: '', company: '', trade: '', plate: '', driver: '' })
 
@@ -9,25 +10,36 @@ Page({
     type: 'visitor' as EntryType, title: '', step: 1, noticeOpen: false, noticeChecked: false,
     draft: {} as Draft, rows: [] as Array<{ id: string; name: string; phone: string; company: string; extra: string }>,
     areas: AREAS.map(a => ({ ...a, selected: false })), selectedAreas: '', planTitles: [] as string[], taskCount: 0,
-    editorOpen: false, editId: '', form: emptyForm(), error: '', submitting: false
+    editorOpen: false, editId: '', form: emptyForm(), error: '', submitting: false,
+    today: calendarDate(), timeSlots: TIME_SLOTS, visitReasons: VISIT_REASONS,
+    timeSlotIndex: -1, reasonIndex: -1, infoErrors: {} as Record<string, string>, infoSections: [] as ReturnType<typeof getRegistrationSections>,
+    constructionFields: [
+      { key: 'projectName', label: '项目名称', placeholder: '请输入项目名称', maxlength: 80 },
+      { key: 'workArea', label: '施工位置', placeholder: '例如：一号车间设备区', maxlength: 100 },
+      { key: 'contractorCompany', label: '施工单位', placeholder: '请输入施工单位名称', maxlength: 60 },
+      { key: 'supervisor', label: '现场负责人', placeholder: '请输入负责人姓名', maxlength: 30 }
+    ]
   },
   onLoad(query: Record<string, string>) {
     if (query.type === 'training') { wx.redirectTo({ url: '/pages/training/training' }); return }
     const type: EntryType = Object.prototype.hasOwnProperty.call(ENTRY_LABELS, query.type) ? query.type as EntryType : 'visitor'
     const draft = store.draft(type)
     const title = `${ENTRY_LABELS[type]}登记`
-    this.setData({ type, title, noticeOpen: !draft.noticeAccepted, noticeChecked: draft.noticeAccepted })
+    this.setData({ type, title, today: calendarDate(), noticeOpen: !draft.noticeAccepted, noticeChecked: draft.noticeAccepted })
     wx.setNavigationBarTitle({ title })
     this.sync(draft)
   },
   sync(draft: Draft) {
+    draft = { appointmentDate: '', timeSlot: '', hostName: '', visitReason: '', projectName: '', workArea: '', contractorCompany: '', supervisor: '', accompanyingVehicles: [], ...draft }
     const rows = draft.type === 'logistics'
       ? draft.vehicles.map(v => ({ id: v.id, name: v.plate, phone: maskPhone(v.phone), company: v.company, extra: `司机：${v.driver}` }))
       : draft.people.map(p => ({ id: p.id, name: p.name, phone: maskPhone(p.phone), company: p.company, extra: p.trade ? `工种：${p.trade}` : '' }))
     const planIds = matchPlans(draft.type, draft.areaIds)
     this.setData({ draft, rows, areas: AREAS.map(a => ({ ...a, selected: draft.areaIds.includes(a.id) })),
       selectedAreas: AREAS.filter(a => draft.areaIds.includes(a.id)).map(a => a.name).join('、'),
-      planTitles: planIds.map(id => getPlan(id).title), taskCount: getTrainingSubjects(draft).length * planIds.length, error: '' })
+        planTitles: planIds.map(id => getPlan(id).title), taskCount: getTrainingSubjects(draft).length * planIds.length, error: '',
+        timeSlotIndex: TIME_SLOTS.indexOf(draft.timeSlot || ''), reasonIndex: VISIT_REASONS.indexOf(draft.visitReason || ''),
+        infoSections: getRegistrationSections(draft), infoErrors: Object.keys(this.data.infoErrors).length ? getRegistrationErrors(draft) : {} })
   },
   persist(draft: Draft) { store.saveDraft(draft); this.sync(draft) },
   noop() {},
@@ -37,7 +49,7 @@ Page({
     try { this.persist({ ...this.data.draft, noticeAccepted: true }); this.setData({ noticeOpen: false }) } catch (error) { showError(error) }
   },
   onCancelNotice() { wx.navigateBack() },
-  onAdd() { this.setData({ editorOpen: true, editId: '', form: emptyForm(), error: '' }) },
+  onAdd() { this.setData({ editorOpen: true, editId: '', form: { ...emptyForm(), company: this.data.type === 'contractor' ? this.data.draft.contractorCompany || '' : '' }, error: '' }) },
   onEdit(event: WechatMiniprogram.BaseEvent) {
     const id = event.currentTarget.dataset.id as string
     const entry = this.data.type === 'logistics' ? this.data.draft.vehicles.find(v => v.id === id) : this.data.draft.people.find(p => p.id === id)
@@ -48,6 +60,41 @@ Page({
     const field = event.currentTarget.dataset.field as string
     this.setData({ [`form.${field}`]: event.detail.value, error: '' })
   },
+  onInfoInput(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    const field = event.currentTarget.dataset.field as RegistrationField
+    if (!REGISTRATION_FIELDS.includes(field)) return
+    const draft = { ...this.data.draft, [field]: event.detail.value }
+    if (field === 'contractorCompany') draft.people = draft.people.map(p => ({ ...p, company: event.detail.value.trim() }))
+    try { this.persist(draft) } catch (error) { showError(error) }
+  },
+  onDateChange(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    try { this.persist({ ...this.data.draft, appointmentDate: event.detail.value }) } catch (error) { showError(error) }
+  },
+  onInfoSelect(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    const field = event.currentTarget.dataset.field as string
+    const choices = field === 'timeSlot' ? TIME_SLOTS : field === 'visitReason' ? VISIT_REASONS : []
+    const value = choices[Number(event.detail.value)]
+    if (!value) return
+    try { this.persist({ ...this.data.draft, [field]: value }) } catch (error) { showError(error) }
+  },
+  onAddAccompanyingVehicle() {
+    if (this.data.type === 'logistics') return
+    try { this.persist({ ...this.data.draft, accompanyingVehicles: [...this.data.draft.accompanyingVehicles || [], { id: makeId('accompanying'), plate: '' }] }) }
+    catch (error) { showError(error) }
+  },
+  onAccompanyingInput(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    const id = event.currentTarget.dataset.id as string
+    const accompanyingVehicles = (this.data.draft.accompanyingVehicles || []).map(v => v.id === id ? { ...v, plate: event.detail.value } : v)
+    try { this.persist({ ...this.data.draft, accompanyingVehicles }) } catch (error) { showError(error) }
+  },
+  onDeleteAccompanyingVehicle(event: WechatMiniprogram.BaseEvent) {
+    const id = event.currentTarget.dataset.id as string
+    wx.showModal({ title: '删除随行车辆', content: '确定删除这辆随行车辆？', confirmColor: '#c83d39', success: result => {
+      if (!result.confirm) return
+      try { this.persist({ ...this.data.draft, accompanyingVehicles: (this.data.draft.accompanyingVehicles || []).filter(v => v.id !== id) }) }
+      catch (error) { showError(error) }
+    } })
+  },
   onSaveEntry() {
     const form = this.data.form
     const id = this.data.editId || makeId(this.data.type === 'logistics' ? 'vehicle' : 'person')
@@ -57,7 +104,8 @@ Page({
       const index = draft.vehicles.findIndex(v => v.id === id)
       if (index < 0) draft.vehicles.push(entry); else draft.vehicles[index] = entry
     } else {
-      const entry: Person = { id, name: form.name.trim(), phone: form.phone.trim(), company: form.company.trim(), trade: form.trade.trim() }
+      const entry: Person = { id, name: form.name.trim(), phone: form.phone.trim(),
+        company: (this.data.type === 'contractor' ? draft.contractorCompany || '' : form.company).trim(), trade: form.trade.trim() }
       const index = draft.people.findIndex(p => p.id === id)
       if (index < 0) draft.people.push(entry); else draft.people[index] = entry
     }
@@ -74,12 +122,17 @@ Page({
   },
   onDemoData() {
     const draft: Draft = { ...this.data.draft,
+      appointmentDate: calendarDate(), timeSlot: TIME_SLOTS[0],
+      hostName: this.data.type === 'visitor' ? '陈经理（演示）' : '', visitReason: this.data.type === 'visitor' ? '会议' : '',
+      projectName: this.data.type === 'contractor' ? '设备安装（演示）' : '', workArea: this.data.type === 'contractor' ? '一号车间设备区（演示）' : '',
+      contractorCompany: this.data.type === 'contractor' ? '示例制造有限公司' : '', supervisor: this.data.type === 'contractor' ? '王负责人（演示）' : '',
+      accompanyingVehicles: [],
       people: this.data.type === 'logistics' ? [] : [{ id: makeId('person'), name: '张三', phone: '13800138000', company: '示例制造有限公司', trade: this.data.type === 'contractor' ? '电工' : '' },
         { id: makeId('person'), name: '李四', phone: '13900139000', company: '示例制造有限公司', trade: this.data.type === 'contractor' ? '焊工' : '' }],
       vehicles: this.data.type !== 'logistics' ? [] : [{ id: makeId('vehicle'), plate: '粤B12345', driver: '王师傅', phone: '13800138000', company: '示例物流有限公司' },
         { id: makeId('vehicle'), plate: '粤B67890', driver: '李师傅', phone: '13900139000', company: '示例物流有限公司' }] }
     const apply = () => { try { this.persist(draft) } catch (error) { showError(error) } }
-    if (this.data.rows.length) wx.showModal({ title: '填入演示数据', content: '将替换当前草稿的人员和车辆信息，是否继续？', success: r => { if (r.confirm) apply() } })
+    if (this.data.rows.length || REGISTRATION_FIELDS.some(field => this.data.draft[field]) || this.data.draft.accompanyingVehicles?.length) wx.showModal({ title: '填入演示数据', content: '将替换当前草稿的预约、业务信息及人员车辆，是否继续？', success: r => { if (r.confirm) apply() } })
     else apply()
   },
   onArea(event: WechatMiniprogram.BaseEvent) {
@@ -94,6 +147,10 @@ Page({
   },
   onNext() {
     const draft = this.data.draft
+    const infoErrors = getRegistrationErrors(draft)
+    this.setData({ infoErrors })
+    const first = Object.keys(infoErrors)[0]
+    if (first) { wx.pageScrollTo({ selector: `#field-${first}`, duration: 200 }); return }
     const error = validateDraft(this.data.step === 1 ? { ...draft, areaIds: ['production'] } : draft)
     if (error) { this.setData({ error }); return }
     this.setData({ step: this.data.step + 1, error: '' })

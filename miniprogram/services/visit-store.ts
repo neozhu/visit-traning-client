@@ -1,5 +1,6 @@
 import { getPlan, matchPlans } from '../data/catalog'
 import { Draft, ENTRY_LABELS, EntryType, ExamResult, TrainingTask, Visit, getTrainingSubjects, gradeExam, makeId, normalizePlate, validateDraft } from '../models/visit'
+import { REGISTRATION_FIELDS, calendarDate, getRegistrationErrors } from '../models/registration'
 
 export interface StoragePort {
   read(key: string): unknown
@@ -27,6 +28,9 @@ function validDraft(value: unknown): value is Draft {
     && Array.isArray(value.people) && value.people.every(p => object(p) && strings(p, ['id', 'name', 'phone', 'company', 'trade']))
     && Array.isArray(value.vehicles) && value.vehicles.every(v => object(v) && strings(v, ['id', 'plate', 'driver', 'phone', 'company']))
     && Array.isArray(value.areaIds) && value.areaIds.every(id => ['production', 'research', 'office'].includes(id))
+    && REGISTRATION_FIELDS.every(key => value[key] === undefined || typeof value[key] === 'string')
+    && (value.accompanyingVehicles === undefined || (Array.isArray(value.accompanyingVehicles)
+      && value.accompanyingVehicles.every(v => object(v) && strings(v, ['id', 'plate']) && !!v.id)))
 }
 
 function validTask(value: unknown): value is TrainingTask {
@@ -54,7 +58,10 @@ function validTask(value: unknown): value is TrainingTask {
 }
 
 function relevantRoster<T extends Draft>(draft: T): T {
-  return { ...draft, people: draft.type === 'logistics' ? [] : draft.people, vehicles: draft.type === 'logistics' ? draft.vehicles : [] }
+  const company = draft.type === 'contractor' ? draft.contractorCompany?.trim() : ''
+  return { ...draft, people: draft.type === 'logistics' ? [] : company ? draft.people.map(p => ({ ...p, company })) : draft.people,
+    vehicles: draft.type === 'logistics' ? draft.vehicles : [],
+    accompanyingVehicles: draft.type === 'visitor' || draft.type === 'contractor' ? draft.accompanyingVehicles || [] : [] }
 }
 
 const requiredPlans = (visit: Visit) => visit.type === 'training' && visit.areaIds.length
@@ -144,11 +151,14 @@ export function createVisitStore(storage: StoragePort, clock: () => number = Dat
     register(draft: Draft): Visit {
       const existing = state.visits.find(v => v.id === draft.id)
       if (existing) return clone(existing)
-      const issue = validateDraft(draft)
+      const candidate = relevantRoster(clone(draft))
+      const issue = validateDraft(candidate) || Object.values(getRegistrationErrors(candidate, calendarDate(clock())))[0]
       if (issue) throw new Error(issue)
       return mutate(next => {
-        const visit: Visit = relevantRoster({ ...clone(draft), areaIds: draft.type === 'training' ? [] : [...new Set(draft.areaIds)], createdAt: clock() })
+        const visit: Visit = { ...candidate, areaIds: draft.type === 'training' ? [] : [...new Set(draft.areaIds)], createdAt: clock() }
+        REGISTRATION_FIELDS.forEach(field => { if (visit[field] !== undefined) visit[field] = visit[field]!.trim() })
         visit.vehicles.forEach(v => { v.plate = normalizePlate(v.plate) })
+        visit.accompanyingVehicles?.forEach(v => { v.plate = normalizePlate(v.plate) })
         next.visits.unshift(visit)
         getTrainingSubjects(visit).forEach(subject => matchPlans(visit.type, visit.areaIds).forEach(planId => {
           next.tasks.push({ id: makeId('task'), visitId: visit.id, subjectId: subject.id, planId, createdAt: clock(), completedLessonIds: [] })

@@ -71,7 +71,8 @@ try {
     tap('.accept-notice')
     assert.equal(data().noticeOpen, false)
     tap('.next')
-    assert.match(data().error, /人员|车辆/)
+    assert.equal(data().step, 1)
+    assert.match(data().infoErrors.appointmentDate, /日期/)
     tap('.demo-data')
     assert.equal(data().rows.length, 2)
     if (type === 'visitor') {

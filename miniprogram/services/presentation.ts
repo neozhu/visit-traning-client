@@ -1,6 +1,7 @@
 import { AREAS, getPlan } from '../data/catalog'
 import { ENTRY_LABELS, TrainingTask, Visit, formatDate, getTrainingSubjects, maskPhone } from '../models/visit'
 import { store } from './store'
+import { getRegistrationSections } from '../models/registration'
 
 export function presentTask(task: TrainingTask) {
   const plan = getPlan(task.planId)
@@ -26,7 +27,8 @@ export function presentVisit(visit: Visit) {
     return own.length > 0 && own.every(t => t.lastResult?.passed)
   }).length
   return { ...visit, title: `${ENTRY_LABELS[visit.type]}登记`, date: formatDate(visit.createdAt), names: subjects.join('、'),
-    plates: visit.vehicles.map(v => v.plate).join('、'), areaNames: AREAS.filter(a => visit.areaIds.includes(a.id)).map(a => a.name).join('、'),
+    plates: [...visit.vehicles, ...visit.accompanyingVehicles || []].map(v => v.plate).join('、'), infoSections: getRegistrationSections(visit),
+    areaNames: AREAS.filter(a => visit.areaIds.includes(a.id)).map(a => a.name).join('、'),
     icon: { training: 'book', visitor: 'user', logistics: 'truck', contractor: 'helmet' }[visit.type],
     complete, total: tasks.length, subjectCount: people.length, completedSubjects, passed: tasks.length > 0 && complete === tasks.length }
 }

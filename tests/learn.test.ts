@@ -23,6 +23,7 @@ test('视频失败倒计时正常结束，逐段完成后可以开始五题考�
   const { store } = await import('../miniprogram/services/store')
   await import('../miniprogram/pages/learn/learn')
   const draft = store.draft('visitor')
+  Object.assign(draft, { appointmentDate: '2030-01-02', timeSlot: '08:30–12:00', hostName: '陈经理', visitReason: '会议' })
   Object.assign(draft, { noticeAccepted: true, areaIds: ['production'], people: [{ id: 'p', name: '张三', phone: '13800138000', company: '示例公司', trade: '' }] })
   const task = store.tasks(store.register(draft).id)[0]
   const page = { ...definition, data: structuredClone(definition.data), setData(patch: object) { Object.assign(this.data, patch) } }

@@ -16,6 +16,11 @@ export interface Vehicle {
   company: string
 }
 
+export interface AccompanyingVehicle {
+  id: string
+  plate: string
+}
+
 export interface Draft {
   id: string
   type: EntryType
@@ -23,6 +28,15 @@ export interface Draft {
   people: Person[]
   vehicles: Vehicle[]
   areaIds: string[]
+  appointmentDate?: string
+  timeSlot?: string
+  hostName?: string
+  visitReason?: string
+  projectName?: string
+  workArea?: string
+  contractorCompany?: string
+  supervisor?: string
+  accompanyingVehicles?: AccompanyingVehicle[]
 }
 
 export interface Visit extends Draft {

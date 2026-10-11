@@ -57,6 +57,7 @@ test('选择答案自动进入下一题，错题可返回修改且按最终答�
   assert.match(redirect, /pages\/result\/result/)
 
   const secondDraft = store.draft('visitor')
+  Object.assign(secondDraft, { appointmentDate: '2030-01-02', timeSlot: '08:30–12:00', hostName: '陈经理', visitReason: '会议' })
   Object.assign(secondDraft, { noticeAccepted: true, areaIds: ['production'], people: draft.people })
   const personal = store.tasks(store.register(secondDraft).id)[0]
   for (const lesson of ['production-safety', 'production-ppe']) store.markLesson(personal.id, lesson)
