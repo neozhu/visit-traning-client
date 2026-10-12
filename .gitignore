@@ -2,8 +2,6 @@ node_modules/
 *.tsbuildinfo
 .superpowers/
 .codebase-memory/
-miniprogram/**/*.js
-miniprogram/**/*.js.map
 doc/verification-artifacts/
 web/dist/
 web/test-results/

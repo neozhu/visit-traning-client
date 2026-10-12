@@ -1,28 +1,18 @@
 {
   "name": "visitsafe-demo",
   "version": "1.0.0",
-  "description": "VisitSafe React mobile web application and original Mini Program reference",
+  "private": true,
+  "description": "VisitSafe React mobile web application",
   "scripts": {
     "dev": "npm --prefix web run dev",
     "build": "npm --prefix web run build",
     "preview": "npm --prefix web run preview",
     "typecheck": "npm --prefix web run typecheck",
-    "typecheck:miniapp": "tsc --noEmit",
-    "test": "npm run test:miniapp && npm --prefix web test",
-    "test:miniapp": "tsx --test tests/*.test.ts",
+    "test": "npm --prefix web test",
     "test:web": "npm --prefix web test",
-    "test:e2e": "npm --prefix web run test:e2e",
-    "smoke": "node scripts/smoke.cjs",
-    "smoke:registration": "node scripts/smoke-registration.cjs"
+    "test:e2e": "npm --prefix web run test:e2e"
   },
   "keywords": [],
   "author": "",
-  "license": "",
-  "dependencies": {
-  },
-  "devDependencies": {
-    "miniprogram-api-typings": "^2.8.3-1",
-    "typescript": "^5.9.3",
-    "tsx": "^4.20.6"
-  }
+  "license": ""
 }

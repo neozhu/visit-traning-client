@@ -1,4 +1,0 @@
-.field:first-child { margin-top: 0; }
-.training-match { width: 100%; text-align: left; }
-.training-match .muted { margin-top: 10rpx; }
-.training-link { display: flex; align-items: center; gap: 12rpx; color: var(--primary); font-size: 26rpx; }

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** Use superpowers:executing-plans to implement this plan task by task.
 
-**Goal:** 在新分支交付与现有小程序同等主要流程的独立手机端 React 演示应用。
+**Goal:** 在新分支交付包含登记、个人培训、考试和记录流程的独立手机端 React 演示应用。
 
-**Architecture:** `web/` 是独立 Vite 应用，业务模型和本地存储位于 `src/domain/`，React Context 提供可订阅的状态；页面通过 React Router 导航。原小程序保留，业务源码重新编写。
+**Architecture:** `web/` 是独立 Vite 应用，业务模型和本地存储位于 `src/domain/`，React Context 提供可订阅的状态；页面通过 React Router 导航。仓库根目录提供启动与验证入口。
 
 **Tech Stack:** React、TypeScript、Vite、Ant Design Mobile、Tailwind CSS、React Router、Vitest、Playwright。
 
@@ -14,7 +14,7 @@
 
 - 只针对现代手机浏览器；保留科技蓝和现有业务流程。
 - 使用模拟数据和本地存储，不接入真实后台服务。
-- 新源码不导入 `miniprogram/`；既有素材允许使用。
+- 仅维护 `web/` 应用；既有产品素材允许使用。
 - 改动限定新应用、根目录运行入口和相关文档。
 
 ## Review Focus
@@ -50,7 +50,7 @@ Interfaces: `useVisitSafe()` 提供业务快照和 store；路径覆盖首页、
 Files: 根目录 `package.json`、`.gitignore`、`README.md`、`web/AGENTS.md`。
 
 - [x] 提供根目录 React 启动／构建命令与独立开发约定。
-- [x] 验证原小程序测试未受影响，检查 Git 差异及手机截图。
+- [x] 检查 Git 差异及手机截图；重建阶段完成过旧客户端回归验证，其源码和测试随后按用户要求移除。
 - [x] 完成全分支独立审查并修复重要问题，保留新分支交付。
 
 ## 验收补充
@@ -58,5 +58,14 @@ Files: 根目录 `package.json`、`.gitignore`、`README.md`、`web/AGENTS.md`�
 - [x] 独立审查发现的局域网 HTTP ID 生成、嵌套缓存校验、多标签页旧状态覆盖问题已修复并回归。
 - [x] 按用户反馈统一人员与随行车牌卡片，编辑／删除使用 44px 图标按钮，删除保留确认，编辑保持名单顺序。
 - [x] 访问区域采用圆形 SVG 勾选、蓝色标题与加强边框；多选／取消及 320／390／430px 无溢出已验证。
-- [x] 最终验证：49 项原小程序测试、13 项 React 业务测试、11 项手机浏览器流程均通过；两套类型检查及 React 生产构建通过。
+- [x] 最终 React 验证：13 项业务测试、11 项手机浏览器流程、类型检查及生产构建通过。
 - 实机手机尚未验证；本轮手机验收使用 Edge 和 Playwright 的手机尺寸。
+
+## Task 4: 移除旧客户端代码
+
+Scope: 用户要求删除微信小程序相关的所有代码。保留 React 应用及其资源、业务规格与视觉参考，历史客户端文档不再作为运行和构建依据。
+
+- [x] 先更新根目录和 `web/AGENTS.md`，取消保留旧代码与旧测试的要求。
+- [x] 删除 `miniprogram/`、`typings/`、旧 `tests/`、旧 `scripts/`、微信配置及根目录旧 TypeScript 配置。
+- [x] 清理根目录旧依赖、命令和锁文件，更新 README、React SPEC 与忽略规则。
+- [x] 检查代码和运行配置没有旧平台引用；13 项 React 业务测试、生产构建（包含类型检查）及 11 项手机浏览器流程通过。

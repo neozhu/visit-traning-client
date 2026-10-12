@@ -1,6 +1,6 @@
-# VisitSafe Demo Implementation Plan
+# VisitSafe Historical Demo Implementation Plan
 
-> Execute in the current session. Track each deliverable below and verify before reporting completion.
+> 历史记录：本文对应的旧客户端源码、配置和工具已移除。当前开发与验收请使用 [React 手机端计划](VisitSafe-React-Mobile-PLAN.md)。
 
 **Goal:** Deliver the four-entry, fully interactive WeChat Mini Program described in `VisitSafe-MiniApp-Frontend-SPEC.md` and the 12-screen mockup.
 

@@ -1,4 +1,0 @@
-.detail-task { width: 100%; text-align: left; }.title { font-size: 36rpx; }
-.summary-field { display: flex; align-items: flex-start; justify-content: space-between; gap: 24rpx; margin-top: 20rpx; font-size: 14px; }
-.summary-field .muted { flex-shrink: 0; font-size: 13px; }
-.summary-value { text-align: right; min-width: 0; word-break: break-all; }
