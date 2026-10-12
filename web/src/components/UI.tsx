@@ -1,6 +1,6 @@
 import { Button, Empty, NavBar, TabBar, Toast } from 'antd-mobile'
-import { useLocation, useNavigate } from 'react-router'
-import type { ReactNode } from 'react'
+import { useLocation, useNavigate, useNavigationType } from 'react-router'
+import { ViewTransition, type ReactNode } from 'react'
 
 export function Icon({ name, size = 24, className = '' }: { name: string; size?: number; className?: string }) {
   return <img className={`icon ${className}`} src={`/assets/${name.includes('.') ? name : `${name}.svg`}`} width={size} height={size} alt="" aria-hidden="true" />
@@ -10,11 +10,14 @@ export function notifyError(error: unknown) {
 }
 export function Screen({ title, children, backTo = '/', tabs = false }: { title?: string; children: ReactNode; backTo?: string; tabs?: boolean }) {
   const navigate = useNavigate()
-  return <div className={`screen ${tabs ? 'with-tabs' : ''}`}>
+  const { pathname } = useLocation()
+  // History traversal commits eagerly in React; keep a simple entry fade for it.
+  const animateEntry = useNavigationType() === 'POP' || typeof document.startViewTransition !== 'function'
+  return <ViewTransition key={pathname} default="none" enter="page-enter" exit="page-exit"><div className={`screen ${tabs ? 'with-tabs' : ''} ${animateEntry ? 'page-fallback-enter' : ''}`}>
     {title && <header className="page-header"><NavBar onBack={() => navigate(backTo)}>{title}</NavBar></header>}
     <main className="page-content">{children}</main>
     {tabs && <BottomTabs />}
-  </div>
+  </div></ViewTransition>
 }
 export function BottomTabs() {
   const { pathname } = useLocation()
