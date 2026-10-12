@@ -26,6 +26,26 @@ test('手机首页三个尺寸均无水平溢出，四个入口可用', async ({
   await page.screenshot({ path: 'test-results/home-mobile.png', fullPage: true })
 })
 
+test('须知必须等待三秒并勾选同意，重新进入会重新计时', async ({ page }) => {
+  await page.clock.install()
+  await page.goto('/registration/visitor')
+  await expect(page.getByRole('button', { name: '确认并继续（3秒）', exact: true })).toBeDisabled()
+  await page.getByText('我已阅读并同意以上须知').click()
+  await page.clock.runFor(2000)
+  await expect(page.getByRole('button', { name: '确认并继续（1秒）', exact: true })).toBeDisabled()
+  await page.getByText('我已阅读并同意以上须知').click()
+  await page.clock.runFor(1000)
+  await expect(page.getByRole('button', { name: '确认并继续', exact: true })).toBeDisabled()
+  await page.reload()
+  await expect(page.getByRole('button', { name: '确认并继续（3秒）', exact: true })).toBeDisabled()
+  await page.getByText('我已阅读并同意以上须知').click()
+  await page.clock.runFor(3000)
+  await page.getByRole('button', { name: '确认并继续', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '普通访客须知' })).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '普通访客须知' })).toHaveCount(0)
+})
+
 test('访客独立完成视频考试，刷新保留结果且其他人员未完成', async ({ page }) => {
   await register(page)
   await page.getByRole('button', { name: '张三', exact: true }).click()
