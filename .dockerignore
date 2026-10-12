@@ -1,0 +1,12 @@
+.git
+.superpowers
+.codebase-memory
+**/node_modules
+**/dist
+**/test-results
+**/playwright-report
+doc
+*.log
+.env
+.env.*
+!.env.example

@@ -9,6 +9,7 @@ This repository contains a standalone React mobile web application for visitor r
 - `web/public/assets/` contains product artwork, icons and demonstration videos. Retain asset license files.
 - `web/src/**/*.test.ts` contains business tests; `web/e2e/` contains Playwright mobile browser tests.
 - The repository root provides command wrappers for `web/`; do not add a second application or duplicate its dependencies at the root.
+- `Dockerfile`, `docker-compose.yml` and `docker/nginx.conf` package the React build for Docker Standalone and Portainer Git stacks. `.dockerignore` excludes local dependencies and generated files from the build context.
 - `doc/VisitSafe-React-Mobile-SPEC.md` defines the React delivery scope; `doc/VisitSafe-React-Mobile-PLAN.md` tracks its implementation. Frontend and backend SPECs remain the product references.
 
 ## Build, Test, and Development Commands
@@ -18,6 +19,7 @@ This repository contains a standalone React mobile web application for visitor r
 - Root scripts expose the React development and build commands; check `package.json` for the exact script names.
 - `npm test` runs the React business tests; `npm run test:e2e` runs the mobile browser flows.
 - Headless browser checks do not replace real phone verification.
+- `docker compose up --build -d` builds and serves the production application on port 8080 by default; `HTTP_PORT` changes the host port. Container verification requires a working Docker engine; report when it is unavailable.
 
 ## Coding Style & Naming Conventions
 
