@@ -1,9 +1,10 @@
 import { COURSES, COURSE_RULES, ENTRIES, TIME_SLOTS, VISIT_REASONS } from './catalog'
 import type { AppState, Draft, EntryType, ExamResult, Person, StoragePort, TrainingTask } from './types'
+import { isAppState } from './validateState'
 
 export { AREAS, COURSES, ENTRIES, TIME_SLOTS, VISIT_REASONS } from './catalog'
 export const STORAGE_KEY = 'visitsafe.web.v1'
-export const makeId = () => crypto.randomUUID()
+export const makeId = () => typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('')
 export const today = (time = Date.now()) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(time)
 export const normalizePlate = (plate: string) => plate.replace(/[\s·.-]/g, '').toUpperCase()
 export const validPlate = (plate: string) => /^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-HJ-NP-Z][A-HJ-NP-Z0-9]{5,6}$/.test(normalizePlate(plate))
@@ -77,17 +78,26 @@ const emptyState = (): AppState => ({ version: 1, drafts: {}, visits: [], tasks:
 
 export function createDemoStore(storage: StoragePort, clock: () => number = Date.now) {
   let state = emptyState()
-  try {
-    const data = storage.read(STORAGE_KEY) as AppState | undefined
-    if (data?.version === 1 && Array.isArray(data.visits) && Array.isArray(data.tasks) && data.drafts && typeof data.drafts === 'object') state = structuredClone(data)
-  } catch { /* Unreadable browser data starts a fresh local demonstration. */ }
+  let recovered = false
+  function readState(): AppState {
+    const data = storage.read(STORAGE_KEY)
+    if (data === undefined) return emptyState()
+    if (isAppState(data)) return structuredClone(data)
+    recovered = true
+    return emptyState()
+  }
+  try { state = readState() } catch { recovered = true }
   const subscribers = new Set<() => void>()
-  function update<T>(change: (next: AppState) => T): T {
-    const next = structuredClone(state)
-    const result = change(next)
-    storage.write(STORAGE_KEY, next)
+  function publish(next: AppState) {
+    if (JSON.stringify(next) === JSON.stringify(state)) return
     state = next
     subscribers.forEach(notify => notify())
+  }
+  function update<T>(change: (next: AppState) => T): T {
+    const next = readState()
+    const result = change(next)
+    storage.write(STORAGE_KEY, next)
+    publish(next)
     return structuredClone(result)
   }
   function getTask(data: AppState, id: string): TrainingTask {
@@ -105,19 +115,21 @@ export function createDemoStore(storage: StoragePort, clock: () => number = Date
   }
   const store = {
     snapshot: () => state,
+    recovered: () => recovered,
+    refresh() { publish(readState()) },
     subscribe(listener: () => void) { subscribers.add(listener); return () => { subscribers.delete(listener) } },
     course,
     task(id: string) { return getTask(state, id) },
     saveDraft(draft: Draft) { return update(next => { next.drafts[draft.type] = structuredClone(draft); return draft }) },
     register(draft: Draft) {
-      const existing = state.visits.find(visit => visit.id === draft.id)
-      if (existing) return existing
-      if (!draft.noticeAccepted) throw new Error('请先阅读并同意访客须知')
-      if (!ENTRIES[draft.type]) throw new Error('登记类型不存在')
-      const error = Object.values(registrationErrors(draft, today(clock())))[0]
-      if (error) throw new Error(error)
-      const courseIds = matchCourses(draft.type, draft.areaIds)
       return update(next => {
+        const existing = next.visits.find(visit => visit.id === draft.id)
+        if (existing) return existing
+        if (!draft.noticeAccepted) throw new Error('请先阅读并同意访客须知')
+        if (!ENTRIES[draft.type]) throw new Error('登记类型不存在')
+        const error = Object.values(registrationErrors(draft, today(clock())))[0]
+        if (error) throw new Error(error)
+        const courseIds = matchCourses(draft.type, draft.areaIds)
         const clean = structuredClone(draft)
         clean.vehicles = clean.vehicles.map(vehicle => ({ ...vehicle, plate: normalizePlate(vehicle.plate) }))
         clean.accompanyingVehicles = clean.accompanyingVehicles.map(vehicle => ({ ...vehicle, plate: normalizePlate(vehicle.plate) }))

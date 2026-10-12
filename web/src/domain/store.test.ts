@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as domain from './store'
 import type { Draft, EntryType } from './types'
 
@@ -18,6 +18,15 @@ function setup() {
 }
 
 describe('登记与个人培训', () => {
+  it('普通 HTTP 手机预览也能生成唯一 ID', () => {
+    const getRandomValues = crypto.getRandomValues.bind(crypto)
+    vi.stubGlobal('crypto', { getRandomValues })
+    try {
+      const ids = Array.from({ length: 20 }, () => domain.newDraft('visitor').id)
+      expect(new Set(ids).size).toBe(20)
+      expect(ids.every(id => id.length >= 32)).toBe(true)
+    } finally { vi.unstubAllGlobals() }
+  })
   it('逐人逐课生成任务，重复提交同一草稿不会增加任务', () => {
     const { store } = setup()
     const visit = store.register(fixture())
@@ -67,6 +76,49 @@ describe('登记与个人培训', () => {
 })
 
 describe('考试与持久化', () => {
+  it('损坏的嵌套缓存安全恢复，并报告恢复状态', () => {
+    const { store, storage } = setup()
+    store.register(fixture())
+    const valid = structuredClone(store.snapshot())
+    for (const broken of [
+      { ...valid, drafts: { visitor: { id: 'broken', type: 'visitor' } } },
+      { ...valid, visits: [{ ...valid.visits[0], subjects: [null] }] },
+      { ...valid, tasks: [{ ...valid.tasks[0], attempt: { deadlineAt: 'bad', answers: null } }] },
+    ]) {
+      storage.write(domain.STORAGE_KEY, broken)
+      const restored = domain.createDemoStore(storage)
+      expect(restored.snapshot()).toEqual({ version: 1, drafts: {}, visits: [], tasks: [] })
+      expect(restored.recovered()).toBe(true)
+    }
+  })
+  it('旧标签页不能复活已删除申请，也不能覆盖其他标签页的进度', () => {
+    const { store, storage } = setup()
+    store.register(fixture())
+    const other = domain.createDemoStore(storage)
+    const task = store.snapshot().tasks[0]
+    const lessons = store.course(task.courseId).lessons.map(lesson => lesson.id)
+    store.completeLesson(task.id, lessons[0])
+    other.completeLesson(task.id, lessons[1])
+    expect(other.task(task.id).completedLessons).toEqual(lessons)
+    other.deleteVisit('application-1')
+    expect(() => store.completeLesson(task.id, lessons[0])).toThrow('不存在')
+    expect(domain.createDemoStore(storage).snapshot().visits).toHaveLength(0)
+  })
+  it('外部刷新通知订阅者，多标签页提交同一草稿仍只生成一套任务', () => {
+    const { store, storage } = setup()
+    const other = domain.createDemoStore(storage)
+    store.register(fixture())
+    other.register(fixture())
+    expect(domain.createDemoStore(storage).snapshot().tasks).toHaveLength(4)
+    const listener = vi.fn()
+    other.subscribe(listener)
+    store.deleteVisit('application-1')
+    other.refresh()
+    expect(other.snapshot().visits).toHaveLength(0)
+    expect(listener).toHaveBeenCalledOnce()
+    other.refresh()
+    expect(listener).toHaveBeenCalledOnce()
+  })
   it('学习门槛、最终答案和个人隔离', () => {
     const { store } = setup()
     store.register(fixture())

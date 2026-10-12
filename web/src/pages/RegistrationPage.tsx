@@ -10,6 +10,13 @@ import { VisitSummary } from '../components/VisitSummary'
 
 type Editor = { id: string; name: string; phone: string; company: string; trade: string; plate: string }
 
+function RosterActions({ name, onEdit, onRemove }: { name: string; onEdit: () => void; onRemove: () => void }) {
+  return <div className="roster-actions">
+    <button type="button" aria-label={`编辑${name}`} title="编辑" onClick={onEdit}><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z" /><path d="m14 5 5 5" /></svg></button>
+    <button type="button" className="danger" aria-label={`删除${name}`} title="删除" onClick={onRemove}><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg></button>
+  </div>
+}
+
 export function RegistrationPage() {
   const { type: param } = useParams()
   const type = param as EntryType
@@ -43,10 +50,10 @@ export function RegistrationPage() {
     let next: Draft
     if (type === 'logistics') {
       const vehicle = { id: editor.id, plate: editor.plate, driver: editor.name, phone: editor.phone, company: editor.company }
-      next = { ...draft, vehicles: [...draft.vehicles.filter(item => item.id !== editor.id), vehicle] }
+        next = { ...draft, vehicles: draft.vehicles.some(item => item.id === editor.id) ? draft.vehicles.map(item => item.id === editor.id ? vehicle : item) : [...draft.vehicles, vehicle] }
     } else {
       const person = { id: editor.id, name: editor.name, phone: editor.phone, company: type === 'contractor' ? draft.contractorCompany : editor.company, trade: editor.trade }
-      next = { ...draft, people: [...draft.people.filter(item => item.id !== editor.id), person] }
+        next = { ...draft, people: draft.people.some(item => item.id === editor.id) ? draft.people.map(item => item.id === editor.id ? person : item) : [...draft.people, person] }
     }
     const error = registrationErrors(next)[type === 'logistics' ? 'vehicles' : 'people']
     if (error) { setEditorError(error); return }
@@ -84,12 +91,30 @@ export function RegistrationPage() {
       {type === 'visitor' && <Section title="到访信息"><div className="card form-card">{textField('hostName', '被访人')}<div className="field"><span>到访事由<em>*</em></span><button type="button" className={`select-field ${draft.visitReason ? '' : 'placeholder'}`} onClick={() => setPicker('visitReason')}>{draft.visitReason || '请选择到访事由'}<Icon name="chevron" size={18} /></button><FieldError message={errors.visitReason} /></div></div></Section>}
       {type === 'contractor' && <Section title="施工信息"><div className="card form-card">{textField('projectName', '项目名称')}{textField('workArea', '施工位置')}{textField('contractorCompany', '施工单位')}{textField('supervisor', '现场负责人')}</div></Section>}
       <Section title={type === 'logistics' ? '车辆与司机' : type === 'contractor' ? '施工人员' : '来访人员'} subtitle="每位人员均需独立完成安全培训">
-        {(type === 'logistics' ? draft.vehicles : draft.people).map((item, index) => <div className="card roster-card" key={item.id}><div className="flex gap-3 items-start"><span className="roster-number">{index + 1}</span><div className="flex-1"><strong>{'plate' in item ? item.plate : item.name}</strong><p className="muted small">{'driver' in item ? `${item.driver} · ` : ''}{maskPhone(item.phone)}</p><p className="muted small">{type === 'contractor' ? `${draft.contractorCompany} · ${'trade' in item ? item.trade : ''}` : item.company}</p></div></div><div className="roster-actions"><button type="button" onClick={() => openEditor(item)}>编辑</button><button type="button" className="danger" onClick={() => remove(item.id, type === 'logistics' ? 'vehicles' : 'people')}>删除</button></div></div>)}
+          {(type === 'logistics' ? draft.vehicles : draft.people).map((item, index) => {
+            const name = 'plate' in item ? item.plate : item.name
+            return <article className="card roster-card" key={item.id} aria-label={`${name}登记信息`}>
+              <div className="roster-heading"><span className="roster-number" aria-hidden="true">{index + 1}</span><strong>{name}</strong>
+                <RosterActions name={name} onEdit={() => openEditor(item)} onRemove={() => remove(item.id, type === 'logistics' ? 'vehicles' : 'people')} />
+              </div>
+              <dl className="roster-details">
+                {'driver' in item && <div><dt>司机</dt><dd>{item.driver}</dd></div>}
+                <div><dt>手机</dt><dd>{maskPhone(item.phone)}</dd></div>
+                <div><dt>{type === 'logistics' ? '运输单位' : '所属单位'}</dt><dd>{type === 'contractor' ? draft.contractorCompany : item.company}</dd></div>
+                {type === 'contractor' && 'trade' in item && <div><dt>工种</dt><dd>{item.trade}</dd></div>}
+              </dl>
+            </article>
+          })}
         {!(type === 'logistics' ? draft.vehicles : draft.people).length && <div className="roster-empty">尚未添加{type === 'logistics' ? '车辆及司机' : '人员'}</div>}
         <FieldError message={errors[type === 'logistics' ? 'vehicles' : 'people']} />
         <Button block color="primary" fill="outline" onClick={() => openEditor()}>＋ 添加{type === 'logistics' ? '车辆及司机' : '人员'}</Button>
       </Section>
-      {type !== 'logistics' && <Section title="随行车辆" subtitle="选填，只需登记车牌"><div className="card">{draft.accompanyingVehicles.map(vehicle => <div className="flex items-center justify-between" key={vehicle.id}><button type="button" className="text-button" onClick={() => setPlateEditor({ id: vehicle.id, value: vehicle.plate, roster: false })}>{vehicle.plate} · 编辑</button><button type="button" className="text-button danger" onClick={() => remove(vehicle.id, 'accompanyingVehicles')}>删除</button></div>)}<FieldError message={errors.accompanyingVehicles} /><Button block fill="none" color="primary" onClick={() => setPlateEditor({ id: makeId(), value: '', roster: false })}>＋ 添加随行车牌</Button></div></Section>}
+        {type !== 'logistics' && <Section title="随行车辆" subtitle="选填，只需登记车牌">
+          {draft.accompanyingVehicles.map((vehicle, index) => <article className="card roster-card plate-roster-card" key={vehicle.id} aria-label={`${vehicle.plate}随行车辆`}>
+            <div className="roster-heading"><span className="roster-number" aria-hidden="true">{index + 1}</span><strong>{vehicle.plate}</strong><RosterActions name={`车牌${vehicle.plate}`} onEdit={() => setPlateEditor({ id: vehicle.id, value: vehicle.plate, roster: false })} onRemove={() => remove(vehicle.id, 'accompanyingVehicles')} /></div>
+          </article>)}
+          <FieldError message={errors.accompanyingVehicles} /><Button block fill="outline" color="primary" onClick={() => setPlateEditor({ id: makeId(), value: '', roster: false })}>＋ 添加随行车牌</Button>
+        </Section>}
       <Button className="demo-button" block size="small" fill="none" onClick={demo}>填入预约与两条演示数据</Button>
     </>}
     {step === 1 && <Section title="请选择访问区域" subtitle="可多选，按登记类型与区域匹配必修课程">{AREAS.map(area => <button type="button" key={area.id} aria-label={area.name} aria-pressed={draft.areaIds.includes(area.id)} className={`area-card ${draft.areaIds.includes(area.id) ? 'selected' : ''}`} onClick={() => { save({ ...draft, areaIds: draft.areaIds.includes(area.id) ? draft.areaIds.filter(id => id !== area.id) : [...draft.areaIds, area.id] }); setErrors({}) }}><span className={`entry-icon ${area.color}`}><Icon name={area.icon} size={30} /></span><span className="entry-copy"><strong>{area.name}</strong><span>{area.description}</span><small>{area.caption}</small></span><span className="selection-check">{draft.areaIds.includes(area.id) ? '✓' : ''}</span></button>)}<FieldError message={errors.areaIds} />{courseIds.length > 0 && <div className="info-banner">{subjects.length} 位人员 · 每人 {courseIds.length} 门课程 · 共 {subjects.length * courseIds.length} 项任务</div>}</Section>}
