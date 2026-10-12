@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="420" viewBox="0 0 750 420">
+<defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#d8ebff"/><stop offset="1" stop-color="#f6fbff"/></linearGradient><linearGradient id="wall" x2="1" y2="1"><stop stop-color="#e7edf4"/><stop offset="1" stop-color="#bbcddd"/></linearGradient></defs>
+<rect width="750" height="420" fill="url(#sky)"/>
+<g fill="#fff" opacity=".7"><ellipse cx="625" cy="78" rx="64" ry="15"/><ellipse cx="576" cy="82" rx="50" ry="11"/><ellipse cx="720" cy="140" rx="85" ry="13"/></g>
+<path d="M0 360Q160 328 290 353T750 336V420H0" fill="#d1e3dd"/>
+<path d="M363 286 652 206 740 240 453 325Z" fill="#809bb4"/>
+<path d="M363 286 453 325V399L363 352Z" fill="#bfd0df"/>
+<path d="M453 325 740 240V358L453 412Z" fill="url(#wall)"/>
+<path d="M430 225 621 179 673 199 480 250Z" fill="#9bb3c9"/>
+<path d="M430 225 480 250V324L430 302Z" fill="#d4e0ea"/>
+<path d="M480 250 673 199V273L480 326Z" fill="#e9f0f5"/>
+<g fill="#5988ae"><path d="m493 265 31-8v18l-31 8ZM539 253l31-8v18l-31 8ZM585 241l31-8v18l-31 8ZM631 229l28-7v18l-28 7ZM476 339l31-9v20l-31 9ZM524 325l31-9v20l-31 9ZM572 311l31-9v20l-31 9ZM620 297l31-9v20l-31 9ZM668 283l31-9v20l-31 9Z"/></g>
+<path d="m578 367 45-12v37l-45 8Z" fill="#3a6284"/>
+<g fill="#8bad9b"><ellipse cx="346" cy="365" rx="31" ry="13"/><ellipse cx="737" cy="376" rx="35" ry="13"/><ellipse cx="683" cy="386" rx="28" ry="12"/></g>
+<path d="m304 404 437-54" stroke="#b6ced0" stroke-width="5"/>
+</svg>

@@ -2,35 +2,41 @@
 
 ## Project Structure & Module Organization
 
-This repository currently contains a native WeChat Mini Program TypeScript starter.
+The primary development target is a React mobile web application, independently rebuilt from the existing WeChat Mini Program's product flow and visual reference.
 
-- `miniprogram/app.ts`, `app.json`, and `app.wxss` define application startup, page registration, and global styles.
-- `miniprogram/pages/index/` and `pages/logs/` contain page bundles: matching `.ts`, `.wxml`, `.wxss`, and `.json` files.
-- `miniprogram/utils/` holds shared helpers; `typings/` provides application and WeChat API declarations.
-- `doc/` contains the VisitSafe workflow brief and a training-flow mockup. The full SPEC referenced by `doc/spec.md` is absent; clarify requirements before implementing that scope.
-
-There is no dedicated test or runtime-assets directory yet.
+- `web/` contains the standalone React + TypeScript + Vite application. Use Ant Design Mobile for standard mobile interactions and Tailwind CSS for page layout.
+- `web/src/pages/` contains routed screens; `web/src/components/` contains shared UI; `web/src/domain/` contains business types, mock configuration, validation and local persistence.
+- `web/public/assets/` contains product artwork, icons and demonstration videos. Retain asset license files.
+- `web/src/**/*.test.ts` contains business tests; `web/e2e/` contains Playwright mobile browser tests.
+- `miniprogram/`, `typings/` and `tests/` retain the original Mini Program and its regression tests. Do not import Mini Program source into the new application or change it for unrelated cleanup.
+- `doc/VisitSafe-React-Mobile-SPEC.md` defines the React delivery scope; `doc/VisitSafe-React-Mobile-PLAN.md` tracks its implementation. Frontend and backend SPECs remain the product references.
 
 ## Build, Test, and Development Commands
 
-- `npm install`: install the declared development dependency, `miniprogram-api-typings`.
-- Import the repository root into WeChat Developer Tools. `project.config.json` selects `miniprogram/` and the TypeScript compiler plugin.
-- Use **Compile** to build and run in the simulator; use **Preview** for device checks.
-
-`package.json` defines no build, test, lint, or formatting scripts. Do not assume `npm test` or `npm run build` exists.
+- Install root dependencies with `npm install`, then install the React application's dependencies with `npm --prefix web install`.
+- React commands can be run directly with `npm --prefix web run dev`, `npm --prefix web run build`, `npm --prefix web run typecheck`, `npm --prefix web test` and `npm --prefix web run test:e2e`.
+- Root scripts expose the React development and build commands; check `package.json` for the exact script names.
+- Original Mini Program business tests use `tsx --test tests/*.test.ts`; simulator smoke scripts still require WeChat Developer Tools.
+- Do not assume that simulator smoke tests validate React or that headless browser checks replace real phone verification.
 
 ## Coding Style & Naming Conventions
 
-Use two-space indentation, as configured in the editor settings. Follow existing TypeScript conventions: camelCase functions and variables, single-quoted strings, and omitted semicolons. Use descriptive kebab-case WXSS classes. Keep page filenames aligned with their directory and register new pages in `miniprogram/app.json`. Respect the strict checks in `tsconfig.json`; no formatter or linter is configured.
+Use two-space indentation, camelCase functions and variables, single-quoted strings, and omitted semicolons. Use PascalCase React components and descriptive kebab-case CSS classes. Keep domain code independent of React and browser UI. Respect strict TypeScript checks.
+
+Target modern phone browsers only; no desktop layout or legacy browser support is required. Preserve the existing blue brand, Chinese labels and task flows. Standard components use Ant Design Mobile's public APIs and CSS variables; avoid global overrides of internal `.adm-*` selectors. Keep custom controls accessible, touch friendly and clear in loading, error and empty states. Detailed React conventions live in `web/AGENTS.md`.
 
 ## Testing Guidelines
 
-No automated test framework, test naming convention, or coverage threshold is configured. Compile affected pages and manually verify navigation, avatar/nickname interaction, and stored-log display. Test storage-dependent changes with empty and populated storage. For implemented VisitSafe flows, verify the scenarios in `doc/spec.md`. Report what was checked and any verification limits.
+Run the narrowest meaningful verification while developing, then the React business tests, TypeScript check and production build before delivery. Use Playwright for the registration, individual training, exam and record flows at phone sizes; check at least 320px, 390px and 430px widths. Preserve the original Mini Program's regression tests.
+
+Test empty and populated storage, save failures, draft restoration, duplicate submission, independent person progress, exact name-and-phone queries, exam expiry after reload, retakes, and deletion of related tasks. UI changes need screenshots or browser inspection. Clearly distinguish automated mobile viewport checks from real phone checks and report any verification limits.
 
 ## Commit & Pull Request Guidelines
 
-Git metadata is unavailable in this checkout, so historical commit conventions cannot be confirmed. Use short imperative subjects, such as `Add visitor registration page`. Keep changes focused. Pull requests should explain the behavior changed, link relevant issues, list manual checks, and include screenshots for UI changes.
+Develop the React rebuild on `feat/visitsafe-react-mobile` or another explicitly requested feature branch. Use short imperative commit subjects and keep changes focused. Pull requests should explain behavior, list verified checks and include screenshots for UI changes. Do not merge, push or publish without authorization.
 
 ## Configuration & Scope
 
-`project.private.config.json` overrides shared configuration; keep machine-specific settings there. The VisitSafe brief calls for mock data and local storage. Backend, live API, or cloud integration requires a scope decision. Prefer simple solutions and avoid unrelated refactoring.
+The current React scope uses mock data and a separate browser local-storage namespace. It does not include real authentication, shared cross-device data, backend approval or actual gate authorization. Backend SPEC rules remain requirements for later API integration; do not present them as implemented services.
+
+Use current stable package versions and lock dependencies. Backend, live API, cloud integration and hosting require a scope decision. Keep secrets and machine-specific files out of Git. `project.private.config.json` remains the original Mini Program's local configuration. Prefer simple, direct solutions and avoid unrelated refactoring.

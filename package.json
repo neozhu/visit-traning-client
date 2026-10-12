@@ -1,10 +1,17 @@
 {
   "name": "visitsafe-demo",
   "version": "1.0.0",
-  "description": "VisitSafe native WeChat Mini Program demo",
+  "description": "VisitSafe React mobile web application and original Mini Program reference",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts",
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "preview": "npm --prefix web run preview",
+    "typecheck": "npm --prefix web run typecheck",
+    "typecheck:miniapp": "tsc --noEmit",
+    "test": "npm run test:miniapp && npm --prefix web test",
+    "test:miniapp": "tsx --test tests/*.test.ts",
+    "test:web": "npm --prefix web test",
+    "test:e2e": "npm --prefix web run test:e2e",
     "smoke": "node scripts/smoke.cjs",
     "smoke:registration": "node scripts/smoke-registration.cjs"
   },

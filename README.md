@@ -1,4 +1,35 @@
-# VisitSafe 微信小程序 Demo
+# VisitSafe 手机端应用
+
+新版本使用 React 19、TypeScript 7、Vite 8、Ant Design Mobile 5、Tailwind CSS 4 和 React Router 8，面向现代手机浏览器。React 应用在 `web/`，独立重新开发登记、个人培训、视频学习、考试、结果、凭证和我的记录流程；现有小程序保留作产品参考。
+
+## 启动 React 应用
+
+```powershell
+npm install
+npm --prefix web install
+npm run dev
+```
+
+打开终端显示的本地地址。在同一局域网中，手机可打开 Vite 显示的 Network 地址。页面针对手机宽度设计，预览时可使用浏览器设备模拟模式。
+
+```powershell
+npm test                  # 原小程序与 React 业务测试
+npm run typecheck         # React TypeScript 检查
+npm run build             # React 生产构建，输出 web/dist/
+npx --prefix web playwright install chromium
+npm run test:e2e          # 手机尺寸的完整浏览器流程
+npm run typecheck:miniapp # 原小程序 TypeScript 检查
+```
+
+部署时将 `web/dist/` 作为静态网站目录，并将应用路径回退到 `index.html`，确保直接访问任务及考试链接可用。图标与视频随构建一起发布，不依赖外部图像服务。
+
+React 应用使用独立的 `visitsafe.web.v1` 浏览器存储。三类登记、草稿、人员／车辆增改删、组合课程匹配、个人独立进度、姓名＋手机号继续学习、真实短视频、五题考试、错题重考和记录删除均可交互。考试截止时间按绝对时间保存，刷新及后台恢复不会重新计时。视频加载失败时可主动使用演示计时。
+
+当前是本地演示版本，课程、视频及培训凭证属于演示材料。数据仅在当前浏览器共享；姓名＋手机号查询不构成身份认证。本轮未实现后台服务、真实审批或实际通行授权，后续按后端 SPEC 接入 ASP.NET Minimal API。React 需求见 [React 手机端 SPEC](doc/VisitSafe-React-Mobile-SPEC.md)，开发约定见 [AGENTS.md](AGENTS.md)。
+
+## 原小程序参考说明
+
+以下内容描述保留的微信小程序实现及其原有验收方式。
 
 原生 TypeScript + WXML + WXSS 实现。使用本地数据和 Storage，不依赖后端、云服务或网络视频。
 

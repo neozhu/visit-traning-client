@@ -1,0 +1,132 @@
+import { expect, test, type Page } from '@playwright/test'
+
+async function register(page: Page, label = '普通访客') {
+  await page.goto('/')
+  await page.getByRole('button', { name: label, exact: true }).click()
+  await page.getByText('我已阅读并同意以上须知').click()
+  await page.getByRole('button', { name: '确认并继续' }).click()
+  await page.getByRole('button', { name: '填入预约与两条演示数据' }).click()
+  await page.getByRole('button', { name: '下一步', exact: true }).click()
+  await page.getByRole('button', { name: '非生产区', exact: true }).click()
+  await page.getByRole('button', { name: '下一步', exact: true }).click()
+  await page.getByRole('button', { name: '提交并开始培训' }).click()
+  await expect(page.getByText('人员培训进度')).toBeVisible()
+}
+
+test('手机首页三个尺寸均无水平溢出，四个入口可用', async ({ page }) => {
+  for (const width of [320, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto('/')
+    await expect(page.getByRole('button', { name: '普通访客', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: '物流车辆', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: '施工人员', exact: true })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+  await page.screenshot({ path: 'test-results/home-mobile.png', fullPage: true })
+})
+
+test('访客独立完成视频考试，刷新保留结果且其他人员未完成', async ({ page }) => {
+  await register(page)
+  await page.getByRole('button', { name: '张三', exact: true }).click()
+  await expect(page.getByRole('article')).toHaveCount(1)
+  await page.getByRole('button', { name: '开始学习', exact: true }).click()
+  await page.getByRole('button', { name: '播放视频' }).click()
+  await expect(page.getByRole('button', { name: '开始考试', exact: true })).toBeEnabled({ timeout: 20000 })
+  await page.getByRole('button', { name: '开始考试', exact: true }).click()
+  for (const answer of ['A. 安全帽', 'B. 标识清晰的人行通道', 'C. 停止相关活动并报告现场负责人', 'A. 沿疏散指示撤离至集合点', 'B. 未经授权不触碰或操作']) await page.getByRole('button', { name: answer, exact: true }).click()
+  await page.getByRole('button', { name: '提交试卷', exact: true }).click()
+  await page.getByRole('button', { name: '确认交卷', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '考试通过' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('100', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '返回培训任务' }).click()
+  await expect(page.getByText('1 / 2 人已完成')).toBeVisible()
+  await page.getByRole('button', { name: '李四', exact: true }).click()
+  await expect(page.getByRole('article')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: '开始学习', exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/tasks-mobile.png', fullPage: true })
+})
+
+test('物流和施工登记都能生成专属课程', async ({ page }) => {
+  await register(page, '物流车辆')
+  await expect(page.getByText('物流车辆安全培训').first()).toBeVisible()
+  await register(page, '施工人员')
+  await expect(page.getByText('施工人员安全培训').first()).toBeVisible()
+})
+
+test('删除申请后清除关联任务，旧链接显示缺失状态', async ({ page }) => {
+  await register(page)
+  const tasksUrl = page.url()
+  await page.getByRole('button', { name: '查看申请详情' }).click()
+  await page.getByRole('button', { name: '删除申请' }).click()
+  await page.getByRole('button', { name: '确认删除', exact: true }).click()
+  await expect(page.getByText('还没有来访记录')).toBeVisible()
+  await page.goto(tasksUrl)
+  await expect(page.getByText('申请不存在')).toBeVisible()
+})
+
+test('草稿刷新恢复，七位与八位车牌可保存，取消编辑不改变已保存车牌', async ({ page }) => {
+  await page.goto('/registration/visitor')
+  await page.getByText('我已阅读并同意以上须知').click()
+  await page.getByRole('button', { name: '确认并继续' }).click()
+  await page.getByRole('button', { name: '下一步', exact: true }).click()
+  await expect(page.getByText('请选择今天或未来的有效预约日期')).toBeVisible()
+  await page.getByRole('button', { name: '填入预约与两条演示数据' }).click()
+  await page.getByRole('button', { name: '＋ 添加随行车牌', exact: true }).click()
+  for (const key of ['粤', 'A', '1', '2', '3', '4', '5']) await page.locator('.plate-keys').getByRole('button', { name: key, exact: true }).click()
+  await page.getByRole('button', { name: '确认车牌', exact: true }).click()
+  await expect(page.getByRole('button', { name: '粤A12345 · 编辑', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('textbox', { name: '被访人' })).toHaveValue('陈经理')
+  await page.getByRole('button', { name: '粤A12345 · 编辑', exact: true }).click()
+  await page.getByRole('button', { name: '车牌第3位', exact: true }).click()
+  await page.locator('.plate-keys').getByRole('button', { name: '9', exact: true }).click()
+  await page.getByRole('button', { name: '取消车牌编辑', exact: true }).click()
+  await expect(page.getByRole('button', { name: '粤A12345 · 编辑', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '粤A12345 · 编辑', exact: true }).click()
+  await page.getByRole('button', { name: '清空', exact: true }).click()
+  for (const key of ['粤', 'A', 'D', '1', '2', '3', '4', '5']) await page.locator('.plate-keys').getByRole('button', { name: key, exact: true }).click()
+  await page.screenshot({ path: 'test-results/plate-mobile.png' })
+  await page.getByRole('button', { name: '确认车牌', exact: true }).click()
+  await expect(page.getByRole('button', { name: '粤AD12345 · 编辑', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
+test('姓名手机号查询只显示本人待完成任务，不新建申请', async ({ page }) => {
+  await register(page)
+  await page.goto('/training')
+  await page.getByRole('textbox', { name: '登记姓名' }).fill('张三')
+  await page.getByRole('textbox', { name: '手机号码' }).fill('13800138002')
+  await page.getByRole('button', { name: '查找培训任务', exact: true }).click()
+  await expect(page.getByText('没有找到待完成任务')).toBeVisible()
+  await page.getByRole('textbox', { name: '手机号码' }).fill('13800138001')
+  await page.getByRole('button', { name: '查找培训任务', exact: true }).click()
+  await page.locator('.query-result').click()
+  await expect(page.getByRole('article')).toHaveCount(1)
+  await expect(page.getByText('张三 · 138****8001')).toBeVisible()
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v1')!).visits.length)).toBe(1)
+})
+
+test('过期答卷刷新后自动交卷，重考保留视频并建立新答卷', async ({ page }) => {
+  await register(page)
+  const taskId = await page.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem('visitsafe.web.v1')!)
+    const task = state.tasks[0]
+    task.completedLessons = ['office-safety']
+    task.attempt = { startedAt: Date.now() - 16 * 60000, deadlineAt: Date.now() - 60000, answers: { 'office-q1': 0 } }
+    localStorage.setItem('visitsafe.web.v1', JSON.stringify(state))
+    return task.id
+  })
+  await page.goto(`/exam/${taskId}`)
+  await expect(page.getByText('到期自动交卷', { exact: true })).toBeVisible()
+  await expect(page.getByText('20', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '重新考试', exact: true }).click()
+  await expect(page.getByText('已答 0 / 5')).toBeVisible()
+  await expect(page.locator('.answer-option.selected')).toHaveCount(0)
+  const attempt = await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v1')!).tasks[0])
+  expect(attempt.completedLessons).toEqual(['office-safety'])
+  expect(attempt.attempt.deadlineAt).toBeGreaterThan(Date.now())
+  await page.reload()
+  const deadline = await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v1')!).tasks[0].attempt.deadlineAt)
+  expect(deadline).toBe(attempt.attempt.deadlineAt)
+})

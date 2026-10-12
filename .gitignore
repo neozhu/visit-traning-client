@@ -5,3 +5,6 @@ node_modules/
 miniprogram/**/*.js
 miniprogram/**/*.js.map
 doc/verification-artifacts/
+web/dist/
+web/test-results/
+web/playwright-report/
