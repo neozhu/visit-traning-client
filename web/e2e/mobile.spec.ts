@@ -165,6 +165,20 @@ test('人员与车牌图标按钮可编辑、取消和确认删除，窄屏不�
   await page.getByRole('button', { name: '删除车牌粤AD12345', exact: true }).click()
   await page.getByRole('button', { name: '确认删除', exact: true }).click()
   await expect(page.getByRole('article', { name: '粤AD12345随行车辆', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: '下一步', exact: true }).click()
+  const production = page.getByRole('button', { name: '生产区', exact: true })
+  const research = page.getByRole('button', { name: '研发区', exact: true })
+  await production.click()
+  await research.click()
+  await expect(production).toHaveAttribute('aria-pressed', 'true')
+  await expect(research).toHaveAttribute('aria-pressed', 'true')
+  await research.click()
+  await expect(research).toHaveAttribute('aria-pressed', 'false')
+  for (const width of [320, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+  await page.screenshot({ path: 'test-results/areas-mobile.png' })
 })
 
 test('普通局域网 HTTP 手机预览能完成登记', async ({ page }) => {
