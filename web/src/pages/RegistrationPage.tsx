@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Checkbox, DatePicker, Dialog, Input, Modal, Picker, Popup, Steps } from 'antd-mobile'
+import { Button, Checkbox, CheckList, DatePicker, Dialog, Input, Modal, Picker, Popup, Steps } from 'antd-mobile'
 import { useNavigate, useParams } from 'react-router'
 import { AREAS, ENTRIES, TIME_SLOTS, VISIT_REASONS, makeId, maskPhone, matchCourses, newDraft, registrationErrors, today, trainingSubjects, validPlate } from '../domain/store'
 import type { Draft, EntryType, Person, Vehicle } from '../domain/types'
@@ -7,6 +7,7 @@ import { useVisitSafe } from '../components/VisitSafeProvider'
 import { Actions, FieldError, Icon, Missing, Screen, Section, notifyError } from '../components/UI'
 import { PlatePicker } from '../components/PlatePicker'
 import { VisitSummary } from '../components/VisitSummary'
+import { CARGO_TYPES, LOGISTICS_REASONS } from '../domain/catalog'
 
 type Editor = { id: string; name: string; phone: string; company: string; trade: string; plate: string }
 
@@ -32,6 +33,7 @@ export function RegistrationPage() {
   const [plateEditor, setPlateEditor] = useState<{ id: string; value: string; roster: boolean } | null>(null)
   const [dateOpen, setDateOpen] = useState(false)
   const [picker, setPicker] = useState<'timeSlot' | 'visitReason' | null>(null)
+  const [logisticsPicker, setLogisticsPicker] = useState<'logisticsReasons' | 'cargoType' | null>(null)
   useEffect(() => {
     if (draft.noticeAccepted) return
     setNoticeSeconds(3)
@@ -77,7 +79,7 @@ export function RegistrationPage() {
     if (await Dialog.confirm({ title: '删除这条登记信息？', content: '删除后可重新添加。', confirmText: '确认删除', cancelText: '保留' })) save({ ...draft, [kind]: draft[kind].filter(item => item.id !== id) })
   }
   function demo() {
-    save({ ...draft, appointmentDate: today(), timeSlot: TIME_SLOTS[0], hostName: '陈经理', visitReason: '会议', projectName: '设备检修', workArea: '一号车间', contractorCompany: '安全建设', supervisor: '刘工', people: type === 'logistics' ? [] : [{ id: makeId(), name: '张三', phone: '13800138001', company: type === 'contractor' ? '安全建设' : '示例公司', trade: '电工' }, { id: makeId(), name: '李四', phone: '13800138002', company: type === 'contractor' ? '安全建设' : '示例公司', trade: '焊工' }], vehicles: type === 'logistics' ? [{ id: makeId(), plate: '粤A12345', driver: '王师傅', phone: '13800138003', company: '示例物流' }, { id: makeId(), plate: '粤B67890', driver: '李师傅', phone: '13800138004', company: '示例物流' }] : [] })
+    save({ ...draft, appointmentDate: today(), timeSlot: TIME_SLOTS[0], logisticsReasons: draft.logisticsReasons?.length ? draft.logisticsReasons : ['送货'], cargoType: draft.cargoType || '原材料', logisticsContact: draft.logisticsContact?.trim() ? draft.logisticsContact : '刘工', logisticsOrderNumber: draft.logisticsOrderNumber?.trim() ? draft.logisticsOrderNumber : 'WL-DEMO-001', hostName: '陈经理', visitReason: '会议', projectName: '设备检修', workArea: '一号车间', contractorCompany: '安全建设', supervisor: '刘工', people: type === 'logistics' ? [] : [{ id: makeId(), name: '张三', phone: '13800138001', company: type === 'contractor' ? '安全建设' : '示例公司', trade: '电工' }, { id: makeId(), name: '李四', phone: '13800138002', company: type === 'contractor' ? '安全建设' : '示例公司', trade: '焊工' }], vehicles: type === 'logistics' ? [{ id: makeId(), plate: '粤A12345', driver: '王师傅', phone: '13800138003', company: '示例物流' }, { id: makeId(), plate: '粤B67890', driver: '李师傅', phone: '13800138004', company: '示例物流' }] : [] })
     setErrors({})
   }
   function next() {
@@ -92,8 +94,8 @@ export function RegistrationPage() {
   function submit() {
     try { const visit = store.register(draft); navigate(`/tasks/${visit.id}`, { replace: true }) } catch (error) { notifyError(error) }
   }
-  function textField(field: 'hostName' | 'projectName' | 'workArea' | 'contractorCompany' | 'supervisor', label: string) {
-    return <label className="field" key={field}><span>{label}<em>*</em></span><Input aria-label={label} value={draft[field]} placeholder={`请输入${label}`} maxLength={60} onChange={value => change(field, value)} /><FieldError message={errors[field]} /></label>
+    function textField(field: 'hostName' | 'projectName' | 'workArea' | 'contractorCompany' | 'supervisor' | 'logisticsContact' | 'logisticsOrderNumber', label: string, required = true) {
+      return <label className="field" key={field}><span>{label}{required && <em>*</em>}</span><Input aria-label={label} value={draft[field] || ''} placeholder={`请输入${label}`} maxLength={60} onChange={value => change(field, value)} /><FieldError message={errors[field]} /></label>
   }
   return <Screen title={`${entry.label}登记`}>
     <div className="registration-steps"><Steps current={step}><Steps.Step title="登记信息" /><Steps.Step title="访问区域" /><Steps.Step title="确认提交" /></Steps></div>
@@ -102,6 +104,12 @@ export function RegistrationPage() {
         <div className="field"><span>预约日期<em>*</em></span><button type="button" className={`select-field ${draft.appointmentDate ? '' : 'placeholder'}`} aria-label="选择预约日期" onClick={() => setDateOpen(true)}>{draft.appointmentDate || '请选择预约日期'}<Icon name="chevron" size={18} /></button><FieldError message={errors.appointmentDate} /></div>
         <div className="field"><span>到访时段<em>*</em></span><button type="button" className={`select-field ${draft.timeSlot ? '' : 'placeholder'}`} aria-label="选择到访时段" onClick={() => setPicker('timeSlot')}>{draft.timeSlot || '请选择到访时段'}<Icon name="chevron" size={18} /></button><FieldError message={errors.timeSlot} /></div>
       </div></Section>
+        {type === 'logistics' && <Section title="物流业务信息" subtitle="用于说明本次车辆入厂的业务目的与货物情况"><div className="card form-card">
+          <div className="field"><span>入厂事由（多选）<em>*</em></span><button type="button" className={`select-field ${draft.logisticsReasons?.length ? '' : 'placeholder'}`} aria-label="选择入厂事由" aria-haspopup="dialog" aria-expanded={logisticsPicker === 'logisticsReasons'} onClick={() => setLogisticsPicker('logisticsReasons')}>{draft.logisticsReasons?.join('、') || '请选择入厂事由'}<Icon name="chevron" size={18} /></button><FieldError message={errors.logisticsReasons} /></div>
+          <div className="field"><span>货物类型（单选）<em>*</em></span><button type="button" className={`select-field ${draft.cargoType ? '' : 'placeholder'}`} aria-label="选择货物类型" aria-haspopup="dialog" aria-expanded={logisticsPicker === 'cargoType'} onClick={() => setLogisticsPicker('cargoType')}>{draft.cargoType || '请选择货物类型'}<Icon name="chevron" size={18} /></button><FieldError message={errors.cargoType} /></div>
+          {textField('logisticsOrderNumber', '业务单号')}
+          {textField('logisticsContact', '厂内对接人')}
+        </div></Section>}
       {type === 'visitor' && <Section title="到访信息"><div className="card form-card">{textField('hostName', '被访人')}<div className="field"><span>到访事由<em>*</em></span><button type="button" className={`select-field ${draft.visitReason ? '' : 'placeholder'}`} onClick={() => setPicker('visitReason')}>{draft.visitReason || '请选择到访事由'}<Icon name="chevron" size={18} /></button><FieldError message={errors.visitReason} /></div></div></Section>}
       {type === 'contractor' && <Section title="施工信息"><div className="card form-card">{textField('projectName', '项目名称')}{textField('workArea', '施工位置')}{textField('contractorCompany', '施工单位')}{textField('supervisor', '现场负责人')}</div></Section>}
       <Section title={type === 'logistics' ? '车辆与司机' : type === 'contractor' ? '施工人员' : '来访人员'} subtitle="每位人员均需独立完成安全培训">
@@ -137,6 +145,11 @@ export function RegistrationPage() {
     <Modal className="notice-modal" bodyClassName="notice-modal-body" bodyStyle={{ maxHeight: 'calc(100dvh - 48px)' }} visible={!draft.noticeAccepted} closeOnMaskClick={false} content={<div className="notice-content"><span className="notice-icon"><Icon name="shield" size={38} /></span><h2>{entry.label}须知</h2><p className="muted small">共同守护每一次安全到访</p><div className="notice-copy"><p>1. 请如实填写到访人员及车辆信息。</p><p>2. {entry.notice}</p><p>3. 完成申请区域对应培训并通过考试。</p><p>4. 携带访客凭证，遵守现场安排。</p></div><Checkbox checked={agreement} onChange={setAgreement}>我已阅读并同意以上须知</Checkbox><Button block color="primary" disabled={!agreement || noticeSeconds > 0} onClick={() => save({ ...draft, noticeAccepted: true })}>{noticeSeconds > 0 ? `确认并继续（${noticeSeconds}秒）` : '确认并继续'}</Button><Button block fill="none" onClick={() => navigate('/')}>暂不登记</Button></div>} />
     <DatePicker visible={dateOpen} precision="day" min={new Date(`${today()}T00:00:00+08:00`)} max={new Date('2099-12-31T00:00:00+08:00')} value={new Date(`${draft.appointmentDate || today()}T00:00:00+08:00`)} onClose={() => setDateOpen(false)} onConfirm={value => change('appointmentDate', today(value.getTime()))} />
     <Picker visible={!!picker} columns={[(picker === 'timeSlot' ? TIME_SLOTS : VISIT_REASONS).map(value => ({ label: value, value }))]} onClose={() => setPicker(null)} onConfirm={values => { if (picker) change(picker, String(values[0])) }} />
+    <Popup visible={!!logisticsPicker} onMaskClick={() => setLogisticsPicker(null)} bodyStyle={{ borderRadius: '20px 20px 0 0', maxHeight: '90dvh', overflowY: 'auto' }}><div className="editor-sheet" role="dialog" aria-label={logisticsPicker === 'logisticsReasons' ? '选择入厂事由' : '选择货物类型'}>
+      <div className="sheet-heading"><h2>{logisticsPicker === 'logisticsReasons' ? '入厂事由（多选）' : '货物类型（单选）'}</h2><button type="button" className="icon-button" aria-label="关闭选择" onClick={() => setLogisticsPicker(null)}><Icon name="close" /></button></div>
+      <CheckList multiple={logisticsPicker === 'logisticsReasons'} value={logisticsPicker === 'logisticsReasons' ? draft.logisticsReasons || [] : draft.cargoType ? [draft.cargoType] : []} onChange={values => { if (logisticsPicker === 'logisticsReasons') { save({ ...draft, logisticsReasons: values.map(String) }); setErrors(previous => ({ ...previous, logisticsReasons: '' })) } else if (logisticsPicker === 'cargoType') change('cargoType', String(values[0] || '')) }}>{(logisticsPicker === 'logisticsReasons' ? LOGISTICS_REASONS : CARGO_TYPES).map(value => <CheckList.Item key={value} value={value}>{value}</CheckList.Item>)}</CheckList>
+      <Button block color="primary" onClick={() => setLogisticsPicker(null)}>完成选择</Button>
+    </div></Popup>
     <Popup visible={!!editor} onMaskClick={() => setEditor(null)} bodyStyle={{ borderRadius: '20px 20px 0 0', maxHeight: '90dvh', overflowY: 'auto' }}><div className="editor-sheet"><div className="sheet-heading"><h2>{type === 'logistics' ? '车辆及司机资料' : '人员资料'}</h2><button type="button" className="icon-button" aria-label="取消编辑" onClick={() => setEditor(null)}><Icon name="close" /></button></div>{editor && <>
       {type === 'logistics' && <div className="field"><span>车牌号<em>*</em></span><button type="button" className="select-field" onClick={() => setPlateEditor({ id: editor.id, value: editor.plate, roster: true })}>{editor.plate || '填写车牌'}<Icon name="chevron" size={18} /></button></div>}
       {(['name', 'phone', ...(type === 'contractor' ? ['trade'] : ['company'])] as const).map(field => { const label = field === 'name' ? (type === 'logistics' ? '司机姓名' : '姓名') : field === 'phone' ? '手机号码' : field === 'trade' ? '工种' : type === 'logistics' ? '运输单位' : '所属单位'; return <label className="field" key={field}><span>{label}<em>*</em></span><Input aria-label={label} value={editor[field as keyof Editor]} type={field === 'phone' ? 'tel' : 'text'} maxLength={field === 'phone' ? 11 : 60} placeholder={`请输入${label}`} onChange={value => setEditor({ ...editor, [field]: value })} /></label> })}

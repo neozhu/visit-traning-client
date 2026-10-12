@@ -5,6 +5,7 @@ import { Section } from './UI'
 export function VisitSummary({ draft }: { draft: Draft | Visit }) {
   const fields: [string, string][] = [['预约日期', draft.appointmentDate], ['到访时段', draft.timeSlot], ['登记类型', ENTRIES[draft.type].label]]
   if (draft.type === 'visitor') fields.push(['被访人', draft.hostName], ['到访事由', draft.visitReason])
+  if (draft.type === 'logistics') fields.push(['入厂事由', draft.logisticsReasons?.join('、') || ''], ['厂内对接人', draft.logisticsContact || ''], ['货物类型', draft.cargoType || ''], ['业务单号', draft.logisticsOrderNumber || ''])
   if (draft.type === 'contractor') fields.push(['项目名称', draft.projectName], ['施工位置', draft.workArea], ['施工单位', draft.contractorCompany], ['现场负责人', draft.supervisor])
   return <>
     <Section title="预约与到访信息"><div className="card">{fields.map(([label, value]) => <div className="summary-row" key={label}><span className="muted">{label}</span><span>{value || '未填写'}</span></div>)}</div></Section>

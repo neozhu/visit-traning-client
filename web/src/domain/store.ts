@@ -1,4 +1,4 @@
-import { COURSES, COURSE_RULES, ENTRIES, TIME_SLOTS, VISIT_REASONS } from './catalog'
+import { CARGO_TYPES, COURSES, COURSE_RULES, ENTRIES, LOGISTICS_REASONS, TIME_SLOTS, VISIT_REASONS } from './catalog'
 import type { AppState, Draft, EntryType, ExamResult, Person, StoragePort, TrainingTask } from './types'
 import { isAppState } from './validateState'
 
@@ -39,6 +39,10 @@ export function registrationErrors(draft: Draft, date = today()) {
   const plates = new Set<string>()
   const phones = new Set<string>()
   if (draft.type === 'logistics') {
+    if (!draft.logisticsReasons?.length || !draft.logisticsReasons.every(reason => LOGISTICS_REASONS.includes(reason))) errors.logisticsReasons = '请选择入厂事由'
+    if (!CARGO_TYPES.includes(draft.cargoType || '')) errors.cargoType = '请选择货物类型'
+    if (!draft.logisticsContact?.trim()) errors.logisticsContact = '请填写厂内对接人'
+    if (!draft.logisticsOrderNumber?.trim()) errors.logisticsOrderNumber = '请填写业务单号'
     if (!draft.vehicles.length) errors.vehicles = '请至少添加一辆车及司机'
     for (const vehicle of draft.vehicles) {
       if (!vehicle.driver.trim() || !vehicle.company.trim()) errors.vehicles = '请补齐司机姓名与运输单位'

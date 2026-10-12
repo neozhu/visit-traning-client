@@ -1,4 +1,4 @@
-import { AREAS, COURSES } from './catalog'
+import { AREAS, CARGO_TYPES, COURSES, LOGISTICS_REASONS } from './catalog'
 import type { AppState, Draft, Person, TrainingTask, Visit } from './types'
 
 const isObject = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
@@ -14,6 +14,9 @@ function isPerson(value: unknown): value is Person {
 function isDraft(value: unknown): value is Draft {
   if (!isObject(value) || !stringFields(value, ['id', 'type', 'appointmentDate', 'timeSlot', 'hostName', 'visitReason', 'projectName', 'workArea', 'contractorCompany', 'supervisor'])) return false
   if (!value.id || !entryTypes.includes(String(value.type)) || typeof value.noticeAccepted !== 'boolean') return false
+  if (value.logisticsReasons !== undefined && (!Array.isArray(value.logisticsReasons) || !value.logisticsReasons.every(reason => LOGISTICS_REASONS.includes(reason)) || !unique(value.logisticsReasons))) return false
+  if (value.cargoType !== undefined && value.cargoType !== '' && !CARGO_TYPES.includes(String(value.cargoType))) return false
+  if (!['logisticsContact', 'cargoType', 'logisticsOrderNumber'].every(key => value[key] === undefined || typeof value[key] === 'string')) return false
   if (!Array.isArray(value.people) || !value.people.every(isPerson) || !unique(value.people.map(person => person.id))) return false
   if (!Array.isArray(value.vehicles) || !value.vehicles.every(vehicle => isObject(vehicle) && stringFields(vehicle, ['id', 'plate', 'driver', 'phone', 'company']) && !!vehicle.id)) return false
   if (!Array.isArray(value.accompanyingVehicles) || !value.accompanyingVehicles.every(vehicle => isObject(vehicle) && stringFields(vehicle, ['id', 'plate']) && !!vehicle.id)) return false

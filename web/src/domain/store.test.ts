@@ -18,6 +18,23 @@ function setup() {
 }
 
 describe('登记与个人培训', () => {
+  it('物流厂内对接人与业务单号必填且不能只填空格', () => {
+    const draft = fixture('logistics')
+    const expected = { logisticsContact: '请填写厂内对接人', logisticsOrderNumber: '请填写业务单号' }
+    expect(domain.registrationErrors(draft)).toMatchObject(expected)
+    expect(domain.registrationErrors({ ...draft, logisticsContact: '  ', logisticsOrderNumber: '  ' })).toMatchObject(expected)
+    const errors = domain.registrationErrors({ ...draft, logisticsContact: '刘工', logisticsOrderNumber: 'WL-001' })
+    expect(errors).not.toHaveProperty('logisticsContact')
+    expect(errors).not.toHaveProperty('logisticsOrderNumber')
+    expect(domain.registrationErrors(fixture())).not.toHaveProperty('logisticsContact')
+    expect(domain.registrationErrors(fixture('contractor'))).not.toHaveProperty('logisticsOrderNumber')
+  })
+  it('物流入厂事由与货物类型必须选择有效选项', () => {
+    const draft = fixture('logistics')
+    expect(domain.registrationErrors(draft)).toMatchObject({ logisticsReasons: '请选择入厂事由', cargoType: '请选择货物类型' })
+    expect(domain.registrationErrors({ ...draft, logisticsReasons: ['送货', '提货'], cargoType: '设备' })).not.toHaveProperty('logisticsReasons')
+    expect(domain.registrationErrors({ ...draft, logisticsReasons: ['未知'], cargoType: '未知' })).toMatchObject({ logisticsReasons: '请选择入厂事由', cargoType: '请选择货物类型' })
+  })
   it('普通 HTTP 手机预览也能生成唯一 ID', () => {
     const getRandomValues = crypto.getRandomValues.bind(crypto)
     vi.stubGlobal('crypto', { getRandomValues })
@@ -63,7 +80,7 @@ describe('登记与个人培训', () => {
   })
   it('同一司机驾驶多辆车只生成一组个人任务', () => {
     const { store } = setup()
-    const draft = { ...fixture('logistics'), people: [], vehicles: [{ id: 'v1', plate: '粤A12345', driver: '张三', phone: '13800138001', company: '示例物流' }, { id: 'v2', plate: '粤B12345', driver: '张三', phone: '13800138001', company: '示例物流' }] }
+    const draft = { ...fixture('logistics'), logisticsReasons: ['送货'], cargoType: '设备', logisticsContact: '刘工', logisticsOrderNumber: 'WL-001', people: [], vehicles: [{ id: 'v1', plate: '粤A12345', driver: '张三', phone: '13800138001', company: '示例物流' }, { id: 'v2', plate: '粤B12345', driver: '张三', phone: '13800138001', company: '示例物流' }] }
     expect(store.register(draft).subjects).toHaveLength(1)
     expect(store.snapshot().tasks).toHaveLength(3)
   })

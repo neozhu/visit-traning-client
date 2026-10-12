@@ -10,6 +10,10 @@ export interface Draft {
   timeSlot: string
   hostName: string
   visitReason: string
+  logisticsReasons?: string[]
+  logisticsContact?: string
+  cargoType?: string
+  logisticsOrderNumber?: string
   projectName: string
   workArea: string
   contractorCompany: string
