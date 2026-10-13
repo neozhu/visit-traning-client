@@ -105,7 +105,7 @@ interface FileDto {
 
 服务端只保存浏览器密钥的哈希作为申请归属。客户端不在 JSON 中传 submitterId、归属密钥或后台用户 Id；Cookie 由浏览器自动发送。匿名上下文仅代表这个浏览器，不能当作人员实名身份。
 
-使用 Cookie 的业务 POST、PUT、DELETE 请求附带 `X-CSRF-Token`；上下文创建本身不要求已有 token，但需校验可信来源。Cookie 归属接口和学习凭证接口均执行服务端范围检查，不以“知道资源 Id”为访问依据。
+通过 Cookie 取得访问范围的业务 POST、PUT、DELETE 请求附带 `X-CSRF-Token`；上下文创建本身不要求已有 token，但需校验可信来源。以 X-Learning-Token 取得个人范围的接口不依赖 Cookie 权限或 CSRF token；仍校验该学习凭证。两类接口均执行服务端范围检查，不以“知道资源 Id”为访问依据。
 
 “我的记录”只返回当前浏览器提交的申请。换手机、无痕模式、清除 Cookie 或 Cookie 到期后，原记录仍在后端，但不会自动归属于新浏览器；通过姓名＋手机号仍可查找本人待学课程，不因此取得整单详情或取消权限。
 
@@ -137,7 +137,7 @@ interface FileDto {
 
 ### 3.4 部署边界
 
-第一版推荐网页与 API 同源：网页 `/`，API `/api/v1` 由反向代理转发至 Minimal API。开发环境可由 Vite 代理同一路径。若部署为不同源，显式配置可信 Origin、允许凭据及暴露 `ETag`、`X-Server-Time`、`Retry-After`，前端使用 `credentials: 'include'`，不得用通配来源配合 Cookie。
+第一版推荐网页与 API 同源：网页 `/`，API `/api/v1` 由反向代理转发至 Minimal API。开发环境可由 Vite 代理同一路径。若部署为不同源，显式配置可信 Origin、允许凭据及暴露 `ETag`、`X-Server-Time`、`Retry-After`，前端使用 `credentials: 'include'`，不得用通配来源配合 Cookie。实际跨站部署还需将 Cookie 调整为 `SameSite=None; Secure`，并确认目标浏览器允许该 Cookie；同源为本版首选接入方式。
 
 当前 `docker/nginx.conf` 仅提供静态页面和 SPA 回退。接入时必须增加 API 转发，API 的 404/500 保留 JSON 错误，不能被回退为 `index.html`。本文不修改代理或 Docker 配置。
 
@@ -174,7 +174,7 @@ errors 使用 JSON Pointer 路径；动态字段例如 `/dynamicValues/hostUserI
 | 409 | CLIENT_REQUEST_CONFLICT | 原幂等键已提交其他内容；读取原申请，确需新申请时新建草稿 |
 | 409 | APPLICATION_ENDED / APPLICATION_STATE_CONFLICT | 申请已结束或不允许取消等操作；刷新状态 |
 | 409 | TRAINING_RECORD_NOT_CURRENT | 请求指向旧轮次；响应扩展 currentTrainingRecordId，重新打开当前任务 |
-| 409 | TRAINING_ALREADY_VALID / VIDEOS_INCOMPLETE | 已有效合格无需再考，或视频未完成；刷新任务 |
+| 409 | TRAINING_ALREADY_VALID / TRAINING_NOT_STARTED / VIDEOS_INCOMPLETE | 已有效合格无需再考、未开始播放，或视频未完成；刷新任务 |
 | 409 | EXAM_NOT_READY / EXAM_ALREADY_SUBMITTED / EXAM_DEADLINE_REACHED / EXAM_ANSWERS_INCOMPLETE | 不可创建考试、不可再改答案、已到期或主动交卷未答完；读取考试与结果 |
 | 412 | VERSION_CONFLICT | If-Match 已旧；先读取服务端版本，不能自动覆盖其他标签页的答案 |
 | 413 / 415 | FILE_TOO_LARGE / FILE_TYPE_NOT_ALLOWED | 文件大小或格式不允许；重新选择 |
@@ -628,7 +628,7 @@ interface LearningContentDto {
 
 `POST /training-records/{id}/start` 无请求体，在播放器首次实际开始播放时调用。只写一次 StartedAt，成功返回 200 TrainingRecordDto；刷新、重复播放或失败重考不重置。仅打开页面不调用。旧轮次、有效免训／已通过或结束申请不能通过此操作制造学习开始时间。
 
-`PUT /training-records/{id}/videos/{videoId}/completion` 无请求体，成功返回 200 TrainingRecordDto。服务端校验访问范围、未结束申请、当前轮次、需要实际学习、StartedAt 已记录及视频属于本轮快照，然后去重追加 CompletedVideoIds；未开始返回 `409 EXAM_NOT_READY`，重复完成返回已有进度。
+`PUT /training-records/{id}/videos/{videoId}/completion` 无请求体，成功返回 200 TrainingRecordDto。服务端校验访问范围、未结束申请、当前轮次、需要实际学习、StartedAt 已记录及视频属于本轮快照，然后去重追加 CompletedVideoIds；未开始返回 `409 TRAINING_NOT_STARTED`，重复完成返回已有进度。
 
 第一版由前端正常播放结束事件触发完成上报。播放器继续限制跳播，服务端保存与校验任务进度；这个接口不证明人员确实完整观看，也不包含防代学能力。演示计时不能在真实 API 模式调用完成接口；视频加载失败提供重试，人工处理策略另行定义。
 
@@ -702,8 +702,8 @@ StartedAt 取服务端创建时刻，DeadlineAt=StartedAt＋快照考试时长�
 - 服务端记录 SubmittedAt；passed=true 时，在同一事务中写 TrainingRecord.CompletedAt，并读取来源 TrainingCourse 当前生效的 TrainingValidityDays 计算 ValidUntil。课程有效期不从旧快照或客户端取得。
 - 有效区间为 `CompletedAt <= 服务端当前时刻 < ValidUntil`。已经写入的通过时间与截止时间不能因重载、复用、重复交卷或课程配置修改改变。
 - 交卷事务与答案写入串行化。答案先成功提交则按该答案结算；交卷先完成则之后答案拒绝，不能出现改完分数后又接受答案的状态。
-- 服务端负责超时结算，不依赖前端倒计时或页面仍然打开。可采用后台到期处理，并在读取考试、结果、任务及答题／交卷时兜底；已到期的未交卷考试在返回前按保存答案结算。所有路径结算同一结果，SubmittedAt 记录首次实际服务端结算时刻，不伪造为浏览器计时结束时刻。
-- 读取时的到期结算属于已开始考试的既定到期处理，重试读取不延长 DeadlineAt；结束申请中的进行中考试不再接受写入，可按保存答案归档结算，但不因归档新授予培训合格结果。
+- 服务端负责未结束申请的超时结算，不依赖前端倒计时或页面仍然打开。可采用后台到期处理，并在读取考试、结果、任务及答题／交卷时兜底；申请仍未结束时，已到期的未交卷考试在返回前按保存答案结算。所有路径结算同一结果，SubmittedAt 记录首次实际服务端结算时刻，不伪造为浏览器计时结束时刻。
+- 读取时的到期结算属于已开始考试的既定到期处理，重试读取不延长 DeadlineAt。申请结束与交卷必须串行化：结束前已到期的考试先按规则结算；结束时尚未到期的未交卷考试保留原时间及答案，只读且 canAnswer、canSubmit 为 false，不在申请结束后继续结算成新的通过结果。
 
 培训有效期取实际结算时生效的课程天数，而考试题目、解析、及格分与时长仍取本轮快照。API 不能将有效免训记录当作新考试，也不能让已结束申请继续取得新的通过结果。
 
@@ -711,7 +711,7 @@ StartedAt 取服务端创建时刻，DeadlineAt=StartedAt＋快照考试时长�
 
 ### 10.1 结果与错题
 
-`GET /exam-attempts/{examAttemptId}/result`，已交卷返回 200 ExamResultDto；未交卷且未到期返回 `409 EXAM_NOT_READY`。
+`GET /exam-attempts/{examAttemptId}/result`，已交卷返回 200 ExamResultDto；未结束申请的考试到期时先结算，未交卷且未到期返回 `409 EXAM_NOT_READY`。结束申请中保留的未交卷考试返回 `409 APPLICATION_ENDED`，已有交卷结果仍可查看。
 
 ```typescript
 interface ExamResultDto {

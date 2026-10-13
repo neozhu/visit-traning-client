@@ -39,7 +39,7 @@ docker compose ps
 | 配置 | 值 |
 | --- | --- |
 | Name | `visitsafe` |
-| Repository URL | `https://github.com/neozhu/visitor-safe-wechat.git` |
+| Repository URL | `https://github.com/neozhu/visit-traning-client.git` |
 | Repository reference | `refs/heads/feat/visitsafe-react-mobile` |
 | Compose path | `docker-compose.yml` |
 | Environment variables | 可选：`HTTP_PORT=8080` |
