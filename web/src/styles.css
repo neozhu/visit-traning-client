@@ -56,7 +56,7 @@ h1, h2, h3, p { margin: 0; } h1 { font-size: 24px; line-height: 1.4; } h2 { font
 .continue-copy strong { font-size: 14px; font-weight: 600; }
 .continue-copy > span { color: var(--muted); font-size: 12px; }
 .continue-link { display: flex; flex-shrink: 0; align-items: center; gap: 5px; color: var(--adm-color-primary); font-size: 13px; font-weight: 600; }
-.home-screen .bottom-tabs { --adm-font-size-2: 14px; --adm-color-text-secondary: #758196; padding: 10px 0 calc(12px + env(safe-area-inset-bottom)); }
+.home-screen .bottom-tabs { --adm-color-primary: #246bfd; --line: #e6ecf4; }
 @media (max-width: 350px) {
   .home-screen .entry-copy > span { font-size: 12px; }
   .continue-card { gap: 9px; }
