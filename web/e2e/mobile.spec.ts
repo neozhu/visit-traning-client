@@ -125,17 +125,17 @@ test('姓名手机号查询只显示本人待完成任务，不新建申请', as
   await page.locator('.query-result').click()
   await expect(page.getByRole('article')).toHaveCount(1)
   await expect(page.getByText('张三 · 138****8001')).toBeVisible()
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v1')!).visits.length)).toBe(1)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v2')!).visits.length)).toBe(1)
 })
 
 test('过期答卷刷新后自动交卷，重考保留视频并建立新答卷', async ({ page }) => {
   await register(page)
   const taskId = await page.evaluate(() => {
-    const state = JSON.parse(localStorage.getItem('visitsafe.web.v1')!)
+    const state = JSON.parse(localStorage.getItem('visitsafe.web.v2')!)
     const task = state.tasks[0]
     task.completedLessons = ['office-safety']
     task.attempt = { startedAt: Date.now() - 16 * 60000, deadlineAt: Date.now() - 60000, answers: { 'office-q1': 0 } }
-    localStorage.setItem('visitsafe.web.v1', JSON.stringify(state))
+    localStorage.setItem('visitsafe.web.v2', JSON.stringify(state))
     return task.id
   })
   await page.goto(`/exam/${taskId}`)
@@ -144,11 +144,11 @@ test('过期答卷刷新后自动交卷，重考保留视频并建立新答卷',
   await page.getByRole('button', { name: '重新考试', exact: true }).click()
   await expect(page.getByText('已答 0 / 5')).toBeVisible()
   await expect(page.locator('.answer-option.selected')).toHaveCount(0)
-  const attempt = await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v1')!).tasks[0])
+  const attempt = await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v2')!).tasks[0])
   expect(attempt.completedLessons).toEqual(['office-safety'])
   expect(attempt.attempt.deadlineAt).toBeGreaterThan(Date.now())
   await page.reload()
-  const deadline = await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v1')!).tasks[0].attempt.deadlineAt)
+  const deadline = await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v2')!).tasks[0].attempt.deadlineAt)
   expect(deadline).toBe(attempt.attempt.deadlineAt)
 })
 
@@ -220,7 +220,7 @@ test('普通局域网 HTTP 手机预览能完成登记', async ({ page }) => {
 test('缺损缓存显示恢复提示，重新登记后刷新正常', async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem('seeded')) return
-    localStorage.setItem('visitsafe.web.v1', JSON.stringify({ version: 1, drafts: { visitor: { id: 'broken', type: 'visitor' } }, visits: [], tasks: [] }))
+    localStorage.setItem('visitsafe.web.v2', JSON.stringify({ version: 2, drafts: { visitor: { id: 'broken', type: 'visitor' } }, visits: [], tasks: [] }))
     sessionStorage.setItem('seeded', 'true')
   })
   await page.goto('/registration/visitor')
@@ -234,9 +234,9 @@ test('缺损缓存显示恢复提示，重新登记后刷新正常', async ({ pa
 test('双标签页同步考试答案与删除，旧学习页不会复活申请', async ({ page, context }) => {
   await register(page)
   const taskId = await page.evaluate(() => {
-    const state = JSON.parse(localStorage.getItem('visitsafe.web.v1')!)
+    const state = JSON.parse(localStorage.getItem('visitsafe.web.v2')!)
     state.tasks[0].completedLessons = ['office-safety']
-    localStorage.setItem('visitsafe.web.v1', JSON.stringify(state))
+    localStorage.setItem('visitsafe.web.v2', JSON.stringify(state))
     return state.tasks[0].id
   })
   await page.goto(`/learn/${taskId}`)
@@ -256,5 +256,5 @@ test('双标签页同步考试答案与删除，旧学习页不会复活申请',
   await expect(other.getByText('培训任务不存在', { exact: true })).toBeVisible()
   await other.goto('/records')
   await expect(other.getByText('还没有来访记录')).toBeVisible()
-  expect(await other.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v1')!).visits.length)).toBe(0)
+  expect(await other.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v2')!).visits.length)).toBe(0)
 })

@@ -6,7 +6,7 @@ export const LOGISTICS_REASONS = ['送货', '提货', '退货', '空车入厂']
 export const CARGO_TYPES = ['原材料', '设备', '成品', '废料', '其他']
 export const ENTRIES = {
   visitor: { label: '普通访客', description: '来访人员登记与安全培训', icon: 'user-home', color: 'green', notice: '请如实填写来访人员资料，遵守厂区管理规定，在被访人安排下进入申请区域。' },
-  logistics: { label: '物流车辆', description: '司机及车辆登记与安全培训', icon: 'truck-home', color: 'orange', notice: '车辆遵守厂区限速与指定路线，装卸须听从现场指挥，每位司机均需独立完成安全培训。' },
+  logistics: { label: '物流车辆', description: '司机及车辆登记与安全培训', icon: 'truck-home', color: 'orange', notice: '车辆遵守厂区限速与指定路线，装卸须听从现场指挥，每位司机均须取得有效的安全培训合格结果。' },
   contractor: { label: '施工人员', description: '施工人员登记与安全培训', icon: 'helmet-home', color: 'purple', notice: '施工前确认作业许可，按要求做好个人防护和现场隔离，服从现场负责人的安全管理。' },
 } satisfies Record<EntryType, { label: string; description: string; icon: string; color: string; notice: string }>
 export const AREAS = [
@@ -23,11 +23,11 @@ const questions: Omit<Question, 'id'>[] = [
 ]
 const lesson = (id: string, title: string, description: string, video: string) => ({ id, title, description, source: `/assets/videos/${video}.mp4` })
 const definitions: Omit<Course, 'questions'>[] = [
-  { id: 'production', title: '生产区域安全培训', subtitle: '认识风险，安全进入生产现场', icon: 'factory', lessons: [lesson('production-safety', '生产区域安全须知', '熟悉人行通道、设备安全和应急疏散，遵守现场标识与管理人员安排。', 'safety'), lesson('production-ppe', '个人防护用品使用', '正确佩戴安全帽和必要的防护用品，未经授权不要触碰设备，发现隐患及时报告。', 'ppe')] },
-  { id: 'research', title: '研发区域安全培训', subtitle: '规范进入实验室与研发区域', icon: 'flask', lessons: [lesson('research-safety', '实验室访问与防护', '由授权人员陪同进入实验室，按要求佩戴防护用品，不触碰试剂或设备。', 'research')] },
-  { id: 'office', title: '非生产区域安全培训', subtitle: '熟悉公共区域与应急路线', icon: 'building', lessons: [lesson('office-safety', '公共区域与应急疏散', '熟悉安全出口和指定集合点，遵守禁烟规定，发生火警时沿疏散标识有序撤离。', 'office')] },
-  { id: 'traffic', title: '物流车辆安全培训', subtitle: '人车分流，规范装卸与停靠', icon: 'truck', lessons: [lesson('traffic-safety', '厂区行车与装卸安全', '车辆遵守厂区限速、指定行车路线和现场指挥，司机走人行通道。', 'traffic')] },
-  { id: 'construction', title: '施工人员安全培训', subtitle: '持证作业，做好施工防护', icon: 'helmet', lessons: [lesson('construction-safety', '施工许可与现场防护', '施工前确认作业许可、人员资质和隔离防护，发现风险停止作业并报告。', 'construction')] },
+  { id: 'production', title: '生产区域安全培训', subtitle: '认识风险，安全进入生产现场', icon: 'factory', trainingValidityDays: 60, lessons: [lesson('production-safety', '生产区域安全须知', '熟悉人行通道、设备安全和应急疏散，遵守现场标识与管理人员安排。', 'safety'), lesson('production-ppe', '个人防护用品使用', '正确佩戴安全帽和必要的防护用品，未经授权不要触碰设备，发现隐患及时报告。', 'ppe')] },
+  { id: 'research', title: '研发区域安全培训', subtitle: '规范进入实验室与研发区域', icon: 'flask', trainingValidityDays: 60, lessons: [lesson('research-safety', '实验室访问与防护', '由授权人员陪同进入实验室，按要求佩戴防护用品，不触碰试剂或设备。', 'research')] },
+  { id: 'office', title: '非生产区域安全培训', subtitle: '熟悉公共区域与应急路线', icon: 'building', trainingValidityDays: 60, lessons: [lesson('office-safety', '公共区域与应急疏散', '熟悉安全出口和指定集合点，遵守禁烟规定，发生火警时沿疏散标识有序撤离。', 'office')] },
+  { id: 'traffic', title: '物流车辆安全培训', subtitle: '人车分流，规范装卸与停靠', icon: 'truck', trainingValidityDays: 60, lessons: [lesson('traffic-safety', '厂区行车与装卸安全', '车辆遵守厂区限速、指定行车路线和现场指挥，司机走人行通道。', 'traffic')] },
+  { id: 'construction', title: '施工人员安全培训', subtitle: '持证作业，做好施工防护', icon: 'helmet', trainingValidityDays: 60, lessons: [lesson('construction-safety', '施工许可与现场防护', '施工前确认作业许可、人员资质和隔离防护，发现风险停止作业并报告。', 'construction')] },
 ]
 export const COURSES: Course[] = definitions.map(course => ({ ...course, questions: questions.map((question, index) => ({ ...question, id: `${course.id}-q${index + 1}` })) }))
 export const COURSE_RULES: Record<EntryType, Record<string, string[]>> = {

@@ -5,10 +5,16 @@ import type { AppState } from '../domain/types'
 const VisitSafeContext = createContext<{ store: DemoStore; state: AppState } | null>(null)
 
 export function VisitSafeProvider({ children }: { children: ReactNode }) {
-  const [store] = useState(() => createDemoStore({
-    read: key => { const value = localStorage.getItem(key); if (value === null) return undefined; try { return JSON.parse(value) } catch { return null } },
-    write: (key, value) => localStorage.setItem(key, JSON.stringify(value)),
-  }))
+  const [store] = useState(() => {
+    try {
+      localStorage.removeItem('visitsafe.web.v1')
+      for (const key of Object.keys(sessionStorage)) if (key.startsWith('visitsafe.web.video.')) sessionStorage.removeItem(key)
+    } catch { /* The new namespace never reads legacy data. */ }
+    return createDemoStore({
+      read: key => { const value = localStorage.getItem(key); if (value === null) return undefined; try { return JSON.parse(value) } catch { return null } },
+      write: (key, value) => localStorage.setItem(key, JSON.stringify(value)),
+    })
+  })
   const state = useSyncExternalStore(store.subscribe, store.snapshot)
   useEffect(() => {
     const refresh = () => { try { store.refresh() } catch { /* Keep the last readable snapshot; mutations still report storage errors. */ } }
@@ -17,7 +23,8 @@ export function VisitSafeProvider({ children }: { children: ReactNode }) {
     window.addEventListener('storage', storageChanged)
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', visible)
-    return () => { window.removeEventListener('storage', storageChanged); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', visible) }
+    const timer = window.setInterval(refresh, 60000)
+    return () => { window.removeEventListener('storage', storageChanged); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', visible); window.clearInterval(timer) }
   }, [store])
   return <VisitSafeContext value={{ store, state }}>{store.recovered() && <div className="cache-recovery" role="status">本地演示数据不完整，已恢复为空白状态，请重新登记。</div>}{children}</VisitSafeContext>
 }

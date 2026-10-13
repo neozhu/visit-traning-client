@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, ProgressBar } from 'antd-mobile'
-import { useNavigate, useParams } from 'react-router'
+import { Navigate, useNavigate, useParams } from 'react-router'
 import { useVisitSafe } from '../components/VisitSafeProvider'
 import { Actions, Badge, Icon, Missing, Screen, Section, notifyError } from '../components/UI'
 
@@ -18,7 +18,7 @@ export function LearnPage() {
   const video = useRef<HTMLVideoElement>(null)
   const maxPosition = useRef(0)
   const lesson = course?.lessons[selected]
-  const fallbackKey = `visitsafe.web.video.${taskId}.${lesson?.id}`
+  const fallbackKey = `visitsafe.web.v2.video.${taskId}.${lesson?.id}`
   useEffect(() => {
     setProgress(0); setPlaying(false); setError(false); maxPosition.current = 0
     const deadline = Number(sessionStorage.getItem(fallbackKey))
@@ -41,6 +41,8 @@ export function LearnPage() {
     return () => { document.removeEventListener('visibilitychange', hide) }
   }, [])
   if (!task || !course || !lesson) return <Missing title="培训任务不存在" />
+  if (!store.currentTasks(task.visitId).some(item => item.id === task.id)) return <Navigate to={`/tasks/${task.visitId}?person=${task.subjectId}`} replace />
+  if (store.isTrainingValid(task)) return <Navigate to={task.reusedFromTaskId ? `/completion/${task.id}` : `/result/${task.id}`} replace />
   const visit = state.visits.find(item => item.id === task.visitId)!
   const person = visit.subjects.find(item => item.id === task.subjectId)!
   const watched = task.completedLessons.includes(lesson.id)

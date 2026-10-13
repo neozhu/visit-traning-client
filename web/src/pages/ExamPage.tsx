@@ -15,6 +15,8 @@ export function ExamPage() {
   const automatic = useRef(false)
   useEffect(() => {
     if (!task) return
+    if (!store.currentTasks(task.visitId).some(item => item.id === task.id)) { navigate(`/tasks/${task.visitId}?person=${task.subjectId}`, { replace: true }); return }
+    if (store.isTrainingValid(task)) { navigate(task.reusedFromTaskId ? `/completion/${task.id}` : `/result/${task.id}`, { replace: true }); return }
     if (!task.attempt) { navigate(task.result ? `/result/${task.id}` : `/learn/${task.id}`, { replace: true }); return }
     const tick = () => {
       setNow(Date.now())

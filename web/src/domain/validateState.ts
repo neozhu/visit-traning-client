@@ -35,7 +35,13 @@ function isTask(value: unknown, visits: Visit[]): value is TrainingTask {
   const visit = visits.find(item => item.id === value.visitId)
   const course = COURSES.find(item => item.id === value.courseId)
   if (!visit || !course || !visit.subjects.some(person => person.id === value.subjectId) || !visit.courseIds.includes(course.id)) return false
+  if (!isNumber(value.roundNumber) || !Number.isInteger(value.roundNumber) || value.roundNumber < 1) return false
+  if (value.reusedFromTaskId !== undefined && (typeof value.reusedFromTaskId !== 'string' || !value.reusedFromTaskId)) return false
+  if (value.completedAt !== undefined && !isNumber(value.completedAt)) return false
+  if (value.validUntil !== undefined && (!isNumber(value.validUntil) || !isNumber(value.completedAt) || value.validUntil <= value.completedAt)) return false
   if (!Array.isArray(value.completedLessons) || !value.completedLessons.every(id => course.lessons.some(lesson => lesson.id === id)) || !unique(value.completedLessons)) return false
+  const completedLessons = value.completedLessons
+  if (value.reusedFromTaskId && (!isNumber(value.completedAt) || !isNumber(value.validUntil) || value.result !== undefined || value.attempt !== undefined || value.completedLessons.length > 0)) return false
   const validAnswers = (answers: unknown) => isObject(answers) && Object.entries(answers).every(([id, answer]) => {
     const question = course.questions.find(item => item.id === id)
     return question && typeof answer === 'number' && Number.isInteger(answer) && answer >= 0 && answer < question.options.length
@@ -51,18 +57,28 @@ function isTask(value: unknown, visits: Visit[]): value is TrainingTask {
     const wrongIds = course.questions.filter(question => answers[question.id] !== question.correct).map(question => question.id)
     if (result.score !== (course.questions.length - wrongIds.length) * 20 || result.passed !== (result.score >= 80) || savedWrongIds.length !== wrongIds.length || !wrongIds.every(id => savedWrongIds.includes(id))) return false
     if (result.passed && value.attempt) return false
+    if (result.passed && (!isNumber(value.completedAt) || !isNumber(value.validUntil) || !course.lessons.every(lesson => completedLessons.includes(lesson.id)))) return false
   }
-  return value.completedAt === undefined || isNumber(value.completedAt)
+  return value.completedAt === undefined || !!value.reusedFromTaskId || (isObject(value.result) && value.result.passed === true)
 }
 
 // Reject an incomplete snapshot as a whole so missing tasks cannot appear as completed training.
 export function isAppState(value: unknown): value is AppState {
-  if (!isObject(value) || value.version !== 1 || !isObject(value.drafts) || !Array.isArray(value.visits) || !Array.isArray(value.tasks)) return false
+  if (!isObject(value) || value.version !== 2 || !isObject(value.drafts) || !Array.isArray(value.visits) || !Array.isArray(value.tasks)) return false
   if (!Object.entries(value.drafts).every(([type, draft]) => entryTypes.includes(type) && isDraft(draft) && draft.type === type)) return false
   if (!value.visits.every(isVisit) || !unique(value.visits.map(visit => visit.id))) return false
   const visits: Visit[] = value.visits
   if (!value.tasks.every(task => isTask(task, visits)) || !unique(value.tasks.map(task => task.id))) return false
   const tasks: TrainingTask[] = value.tasks
-  const pairs = tasks.map(task => JSON.stringify([task.visitId, task.subjectId, task.courseId]))
-  return unique(pairs) && visits.every(visit => visit.subjects.every(person => visit.courseIds.every(courseId => tasks.some(task => task.visitId === visit.id && task.subjectId === person.id && task.courseId === courseId))))
+  const pairs = tasks.map(task => JSON.stringify([task.visitId, task.subjectId, task.courseId, task.roundNumber]))
+  const validSources = tasks.every(task => {
+    if (!task.reusedFromTaskId) return true
+    const source = tasks.find(item => item.id === task.reusedFromTaskId)
+    if (!source || source.reusedFromTaskId || !source.result?.passed || source.courseId !== task.courseId || source.completedAt !== task.completedAt) return false
+    if (source.validUntil !== task.validUntil) return false
+    const person = visits.find(visit => visit.id === task.visitId)!.subjects.find(item => item.id === task.subjectId)!
+    const sourcePerson = visits.find(visit => visit.id === source.visitId)!.subjects.find(item => item.id === source.subjectId)!
+    return person.name.trim() === sourcePerson.name.trim() && person.phone.trim() === sourcePerson.phone.trim()
+  })
+  return unique(pairs) && validSources && visits.every(visit => visit.subjects.every(person => visit.courseIds.every(courseId => tasks.some(task => task.visitId === visit.id && task.subjectId === person.id && task.courseId === courseId))))
 }

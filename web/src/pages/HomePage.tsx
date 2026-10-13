@@ -12,8 +12,8 @@ const entryDescriptions: Record<EntryType, string> = {
 
 export function HomePage() {
   const navigate = useNavigate()
-  const { state } = useVisitSafe()
-  const pending = state.tasks.filter(task => !task.result?.passed).length
+  const { store } = useVisitSafe()
+  const pending = store.currentTasks().filter(task => !store.isTrainingValid(task)).length
   return <Screen tabs className="home-screen">
     <div className="brand-row"><span className="brand-icon"><Icon name="shield-white" size={28} /></span><div><strong>VisitSafe</strong><p>访客安全管理与培训</p></div></div>
     <section className="home-hero"><div className="hero-copy"><h1>让每一次到访<br />更安全、更安心</h1><p>来访登记 · 安全培训 · 便捷通行</p></div></section>
