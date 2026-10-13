@@ -13,11 +13,11 @@
 - 主导航为首页 Dashboard、访客管理、培训管理、培训记录、基础配置、系统管理。
 - 题库属于培训管理；培训记录作为独立主导航，供后台查看。
 - 题库支持单选题和多选题，标准答案及实际作答均按选项集合保存；多选题按全部选对得分的规则评分。
-- VisitorType 与 VisitArea 一样作为可维护的基础配置实体；普通访客、物流车辆、施工人员只是初始数据，后续可动态新增登记类型。小程序根据启用类型生成登记入口，学习培训入口独立保留。
-- VisitApplication 只定义各登记类型通用的固定字段，通过 VisitorTypeId 关联登记类型；类型专属业务字段通过该类型关联的已有动态字段模板扩展。
+- VisitType 与 VisitArea 一样作为可维护的基础配置实体；普通访客、物流车辆、施工人员只是初始数据，后续可动态新增登记类型。小程序根据启用类型生成登记入口，学习培训入口独立保留。
+- VisitApplication 只定义各登记类型通用的固定字段，通过 VisitTypeId 关联登记类型；类型专属业务字段通过该类型关联的已有动态字段模板扩展。
 - TimeSlot 是申请单的固定字段，预约时段选项通过框架已有 PicklistSet 维护，仅用于登记和展示，不参与后续审批、进厂、过期或滞留判断；动态下拉字段的选项定义在对应字段的 metadata 中，不新增专用登记选项表。
 - AppointmentDate 限制每位人员的实际进厂日期：按工厂业务时区计算的服务端确认进厂日期必须等于预约日期，不能提前或延后进厂；本版工厂业务时区为 Asia/Shanghai（UTC+08:00）。该限制不阻止已进厂人员跨日出厂，也不自动将申请转为 Expired。
-- 申请单与访问区域为多对多关系；培训方案按“登记类型＋访问区域”组合配置。提交时按申请 VisitorTypeId 和每个所选 VisitAreaId 同时匹配启用课程，将命中课程合并并按方案去重，为每位人员生成个人课程任务；同一区域的不同登记类型可分配不同课程。
+- 申请单与访问区域为多对多关系；培训方案按“登记类型＋访问区域”组合配置。提交时按申请 VisitTypeId 和每个所选 VisitAreaId 同时匹配启用课程，将命中课程合并并按方案去重，为每位人员生成个人课程任务；同一区域的不同登记类型可分配不同课程。
 - 访客须知按登记类型分别配置，登记弹窗展示当前申请类型对应的标题和正文；新增类型也需配置自己的须知。
 - 培训方案可提供 PDF 文档，供查看和下载。第一版每个方案可选配置一份 PDF，作为补充资料，学习与考试完成规则保持不变。
 - 申请人员支持填写身份证号码及上传人员附件。第一版按每位人员一份可选附件定义，资料保存在本申请的人员记录中。
@@ -39,13 +39,13 @@
 | 主导航 | 模块职责 | 主要实体或数据来源 |
 | --- | --- | --- |
 | 首页 Dashboard | 展示登记数量、申请状态、人员数量和培训完成情况 | 汇总申请单、申请人员、培训记录和考试记录，不新增统计实体 |
-| 访客管理 | 按登记类型管理申请及其登记信息、业务与区域审批待办和进出厂状态，查看人员身份证号码及附件资料 | VisitApplication、Participant、Vehicle、VisitApplicationArea、VisitorApprovalTask；MiniProgramUser 标记提交者 |
+| 访客管理 | 按登记类型管理申请及其登记信息、业务与区域审批待办和进出厂状态，查看人员身份证号码及附件资料 | VisitApplication、Participant、Vehicle、VisitApplicationArea、VisitApprovalTask；MiniProgramUser 标记提交者 |
 | 培训管理 | 维护培训方案及各课程培训有效期、视频、PDF 资料、课程题库及登记类型＋区域与方案的组合配置 | TrainingCourse、TrainingVideo、TrainingQuestion、VisitAreaTrainingCourse |
 | 培训记录 | 查看个人课程进度、历次考试、成绩及关联申请 | TrainingRecord、ExamAttempt，关联申请单和人员 |
-| 基础配置 | 维护登记类型及其入口展示、申请模板、车辆录入要求、访问区域、类型业务审批人取值规则、区域审批负责人和各类型访客须知；预约时段通过 PicklistSet 维护，申请扩展字段及其下拉选项使用动态模块 | VisitorType、VisitArea、VisitorApprovalConfig、VisitorNotice；复用框架已有 PicklistSet 及动态模块的字段定义、metadata 与模板 |
+| 基础配置 | 维护登记类型及其入口展示、申请模板、车辆录入要求、访问区域、类型业务审批人取值规则、区域审批负责人和各类型访客须知；预约时段通过 PicklistSet 维护，申请扩展字段及其下拉选项使用动态模块 | VisitType、VisitArea、VisitApprovalConfig、VisitNotice；复用框架已有 PicklistSet 及动态模块的字段定义、metadata 与模板 |
 | 系统管理 | 使用框架现有用户、角色、权限和日志能力 | 沿用框架实体，本版不重复定义 |
 
-访客管理采用统一申请单模型，按 VisitorType 关联的申请模板使用动态字段，不通过固定三类枚举选择模板。培训记录模块读取实际的学习和考试记录，与课程配置分开。
+访客管理采用统一申请单模型，按 VisitType 关联的申请模板使用动态字段，不通过固定三类枚举选择模板。培训记录模块读取实际的学习和考试记录，与课程配置分开。
 
 ## 3. 类型与公共字段
 
@@ -59,11 +59,11 @@
 | 类型 | 值 | 含义 |
 | --- | --- | --- |
 | VisitApplicationStatus | PendingApproval、Approved、CheckedIn、CheckedOut、Rejected、Cancelled、Expired | 待审批、已批准、已进厂、已出厂、已驳回、已取消、已过期 |
-| VisitorApprovalKind | Business、Area | 业务负责人审批、区域负责人审批；用于审批配置和任务 |
-| VisitorApprovalTaskStatus | Pending、Approved、Rejected、Cancelled | 待处理、已通过、已驳回、已取消；每条业务或区域任务独立保存 |
+| VisitApprovalKind | Business、Area | 业务负责人审批、区域负责人审批；用于审批配置和任务 |
+| VisitApprovalTaskStatus | Pending、Approved、Rejected、Cancelled | 待处理、已通过、已驳回、已取消；每条业务或区域任务独立保存 |
 | TrainingQuestionType | SingleChoice、MultipleChoice | 单选题、多选题 |
 
-VisitorType 是第 7 节定义的实体，不属于上述枚举类型。前端的 `training` 是继续学习入口，不是新申请类型，不创建对应 VisitorType 记录。
+VisitType 是第 7 节定义的实体，不属于上述枚举类型。前端的 `training` 是继续学习入口，不是新申请类型，不创建对应 VisitType 记录。
 
 ## 4. 访客管理实体
 
@@ -86,24 +86,24 @@ VisitorType 是第 7 节定义的实体，不属于上述枚举类型。前端�
 | --- | --- | --- |
 | SubmitterId | string | 关联 MiniProgramUser，标记申请提交者 |
 | ClientRequestId | string | 对应前端草稿标识，用于避免同一草稿重复创建申请 |
-| VisitorTypeId | string | 关联 VisitorType，提交时必须是允许新申请选择的启用类型 |
-| VisitorTypeNameSnapshot | string | 提交时的登记类型名称，供历史申请展示 |
+| VisitTypeId | string | 关联 VisitType，提交时必须是允许新申请选择的启用类型 |
+| VisitTypeNameSnapshot | string | 提交时的登记类型名称，供历史申请展示 |
 | Status | VisitApplicationStatus | 申请流程状态，提交时为 PendingApproval |
 | AppointmentDate | DateOnly | 允许各人员首次进厂的自然日，按工厂业务时区解释；实际确认进厂日期必须与此值相同 |
 | TimeSlot | string | 固定字段，保存提交时的预约时段值，例如 `08:30–12:00`；选项由 PicklistSet 维护，仅用于登记和展示 |
-| VisitorNoticeId | string | 提交时确认的须知，其 VisitorTypeId 必须与本申请一致 |
+| VisitNoticeId | string | 提交时确认的须知，其 VisitTypeId 必须与本申请一致 |
 | NoticeContentSnapshot | string | 本申请确认的须知内容快照 |
 | NoticeAcceptedAt | DateTimeOffset | 须知确认时间 |
 | ReviewedAt | DateTimeOffset? | 整单审批结论形成的时间：业务及全部区域通过或任一审批任务驳回时记录；尚无整单结论时为空 |
 | CheckedInAt | DateTimeOffset? | 本申请首位人员实际进厂的时间；无人进厂时为空 |
 | CheckedOutAt | DateTimeOffset? | 确认整单出厂时保存的最后一位已进厂人员实际出厂时间；整单尚未结束时为空 |
 
-关联集合：申请人员、申请车辆、申请区域、业务与区域审批任务、个人培训记录。每条任务的审批人、审批时间与意见保存到 VisitorApprovalTask，不在申请单上用单一审批人或意见代替。
+关联集合：申请人员、申请车辆、申请区域、业务与区域审批任务、个人培训记录。每条任务的审批人、审批时间与意见保存到 VisitApprovalTask，不在申请单上用单一审批人或意见代替。
 
 动态扩展约定：
 
 - 接入已有动态字段模块，复用其字段定义、模板关联和字段值承载，不新增一套扩展字段实体或自定义存储结构。具体承载属性沿用该模块约定。
-- 按 VisitorType.ApplicationTemplateId 使用对应申请模板；每种类型的模板均须包含定位业务审批人员的动态字段。新增类型通过关联模板扩展，不新增类型枚举或固定分支。
+- 按 VisitType.ApplicationTemplateId 使用对应申请模板；每种类型的模板均须包含定位业务审批人员的动态字段。新增类型通过关联模板扩展，不新增类型枚举或固定分支。
 - 扩展字段使用稳定的字段键，标签、控件类型、必填及下拉选项由动态字段定义及其 metadata 配置。已有业务字段保持归属，审批人员选择按本轮规则增加后台用户标识。
 - 以下为三种初始登记类型的动态字段模板内容，不是 VisitApplication 的固定属性，也不限制后续新增类型及字段：
 
@@ -126,9 +126,9 @@ VisitorType 是第 7 节定义的实体，不属于上述枚举类型。前端�
 约束：
 
 - `SubmitterId + ClientRequestId` 唯一。
-- 所有新申请都要求启用且配置完整的 VisitorType、有效预约日期、预约时段 PicklistSet 中允许选择的值，以及当前申请类型对应的启用须知确认；提交时重新校验，不能仅依赖首页加载时的配置。
-- 类型专属字段的校验基于该 VisitorType 关联的动态模板，不再通过固定的可空业务属性区分登记类型。
-- 提交时保存 VisitorTypeNameSnapshot。登记类型更名、停用或调整模板、车辆录入要求只影响后续新申请，不改写历史类型名称、登记数据或已生成任务；已有未结束申请仍按提交时形成的记录继续审批和培训。
+- 所有新申请都要求启用且配置完整的 VisitType、有效预约日期、预约时段 PicklistSet 中允许选择的值，以及当前申请类型对应的启用须知确认；提交时重新校验，不能仅依赖首页加载时的配置。
+- 类型专属字段的校验基于该 VisitType 关联的动态模板，不再通过固定的可空业务属性区分登记类型。
+- 提交时保存 VisitTypeNameSnapshot。登记类型更名、停用或调整模板、车辆录入要求只影响后续新申请，不改写历史类型名称、登记数据或已生成任务；已有未结束申请仍按提交时形成的记录继续审批和培训。
 - TimeSlot 保存提交时的值，后续调整 PicklistSet 中的时段选项不改变历史申请的显示内容。
 - 创建时间对应申请提交时间。前端草稿继续作为本地填写数据，本版不另建后端草稿实体。
 - 申请流程状态保存到 Status；整单当前培训合格情况由每位人员、每门必修课程的当前培训记录汇总，已过期的旧轮次不参与当前合格判定，培训进度不自动改变申请流程状态。
@@ -240,7 +240,7 @@ flowchart TB
 
 ### 4.4 Vehicle：申请车辆
 
-车辆直接作为申请单的明细保存，一张申请可包含多辆车。车辆自身不区分随行车辆或物流车辆，不保存司机资料，也不关联申请人员，录入要求根据所属 VisitorType 的车辆配置判断。
+车辆直接作为申请单的明细保存，一张申请可包含多辆车。车辆自身不区分随行车辆或物流车辆，不保存司机资料，也不关联申请人员，录入要求根据所属 VisitType 的车辆配置判断。
 
 | 字段 | 类型 | 定义 |
 | --- | --- | --- |
@@ -249,7 +249,7 @@ flowchart TB
 | TransportCompany | string? | 运输单位；所属类型的 TransportCompanyRequired 为真时，每辆已登记车辆必填，否则可为空 |
 | SortOrder | int | 展示顺序 |
 
-VisitorType.VehicleRequired 为真时，申请至少登记一辆车；TransportCompanyRequired 为真时，每辆已登记车辆必须填写运输单位。初始物流类型两项均为真，普通访客、施工类型两项均为假，保留现有物流必填、其他类型车辆选填的要求。新增类型直接配置这两项，不通过 Code 判断车辆要求。培训人员通过申请人员名单独立登记。
+VisitType.VehicleRequired 为真时，申请至少登记一辆车；TransportCompanyRequired 为真时，每辆已登记车辆必须填写运输单位。初始物流类型两项均为真，普通访客、施工类型两项均为假，保留现有物流必填、其他类型车辆选填的要求。新增类型直接配置这两项，不通过 Code 判断车辆要求。培训人员通过申请人员名单独立登记。
 
 车牌沿用前端规范化与格式校验，同一申请内规范化车牌唯一。车辆本身不生成培训记录，记录归属于申请人员。
 
@@ -266,18 +266,18 @@ VisitorType.VehicleRequired 为真时，申请至少登记一辆车；TransportC
 
 每张申请至少选择一个启用区域，同一区域不重复选择。动态字段 `workArea` 描述具体施工位置，与此区域关联分别保存。
 
-### 4.6 VisitorApprovalTask：申请审批任务
+### 4.6 VisitApprovalTask：申请审批任务
 
 保存业务负责人或区域负责人的审批待办与结果。一张申请生成一条业务审批任务，以及每个所选区域的一条区域审批任务。各任务分别保存处理结果；审批配置与培训方案配置互相独立。
 
 | 字段 | 类型 | 定义 |
 | --- | --- | --- |
 | VisitApplicationId | string | 所属申请单 |
-| Kind | VisitorApprovalKind | Business 为类型业务审批，Area 为区域审批 |
+| Kind | VisitApprovalKind | Business 为类型业务审批，Area 为区域审批 |
 | VisitAreaId | string? | 区域任务必填，且属于该申请所选区域；业务任务为空 |
-| VisitorApprovalConfigId | string | 生成本任务时采用的审批配置 |
+| VisitApprovalConfigId | string | 生成本任务时采用的审批配置 |
 | ApproverUserId | string | 提交时按配置及申请动态字段确定的审批人，关联框架已有后台用户；生成后保留原值 |
-| Status | VisitorApprovalTaskStatus | 初始为 Pending，保存本任务的审批结果 |
+| Status | VisitApprovalTaskStatus | 初始为 Pending，保存本任务的审批结果 |
 | ReviewedById | string? | 实际审批操作人；尚未处理时为空 |
 | ReviewedAt | DateTimeOffset? | 本任务通过或驳回的时间；尚未处理时为空 |
 | ReviewComment | string? | 本任务的审批意见；驳回时必须填写原因 |
@@ -285,7 +285,7 @@ VisitorType.VehicleRequired 为真时，申请至少登记一辆车；TransportC
 
 任务与整单的约定：
 
-- 每张申请恰有一条 Business 任务，其审批人按申请 VisitorTypeId 对应配置的 ApproverFieldKey 从动态字段取得；初始普通访客为 hostUserId，施工人员为 supervisorUserId，物流车辆为 logisticsContactUserId，新增类型按自身配置取得。
+- 每张申请恰有一条 Business 任务，其审批人按申请 VisitTypeId 对应配置的 ApproverFieldKey 从动态字段取得；初始普通访客为 hostUserId，施工人员为 supervisorUserId，物流车辆为 logisticsContactUserId，新增类型按自身配置取得。
 - Area 任务按 `VisitApplicationId + VisitAreaId` 唯一，每个所选区域恰有一条；不得遗漏所选区域，也不得生成未选择区域的任务。区域名称使用 VisitApplicationArea 中的提交时快照。
 - 选择 N 个区域时，共生成 `1 + N` 条任务。业务负责人同时是区域负责人，或多个区域负责人相同，仍分别保留各职责的任务和审批结果，不因审批人相同而合并。
 - 第一版建议每条任务指定一位审批人。提交时必须取得本类型的启用业务审批配置、动态字段中的有效业务审批人，以及所有所选区域的启用配置和有效负责人，否则不能完成提交。申请、全部审批任务和个人培训任务一起生成；重复提交不能重复生成这些记录。
@@ -375,19 +375,19 @@ PDF 资料约定：
 
 ### 5.4 VisitAreaTrainingCourse：登记类型、访问区域与培训方案关联
 
-沿用此关联实体，增加必填 VisitorTypeId，保存“登记类型＋访问区域＋培训方案”的组合配置，使用 `VisitorTypeId + VisitAreaId + TrainingCourseId` 作为唯一标识，不另设 Id。
+沿用此关联实体，增加必填 VisitTypeId，保存“登记类型＋访问区域＋培训方案”的组合配置，使用 `VisitTypeId + VisitAreaId + TrainingCourseId` 作为唯一标识，不另设 Id。
 
 | 字段 | 类型 | 定义 |
 | --- | --- | --- |
-| VisitorTypeId | string | 关联适用的登记类型，必须与申请 VisitorTypeId 一致 |
+| VisitTypeId | string | 关联适用的登记类型，必须与申请 VisitTypeId 一致 |
 | VisitAreaId | string | 关联访问区域 |
 | TrainingCourseId | string | 关联培训方案 |
 
-同一个类型与区域组合可关联多个不同方案，同一方案可被多个组合复用。同一组三个标识只能关联一次；调整配置时直接增加或移除关联，不另设规则实体或规则启用字段。VisitorTypeId 不允许为空，不将空值解释为适用全部类型；共同必修课程需显式配置到各适用组合。
+同一个类型与区域组合可关联多个不同方案，同一方案可被多个组合复用。同一组三个标识只能关联一次；调整配置时直接增加或移除关联，不另设规则实体或规则启用字段。VisitTypeId 不允许为空，不将空值解释为适用全部类型；共同必修课程需显式配置到各适用组合。
 
 初始配置沿用现有区域安全课程：对普通访客、物流车辆、施工人员分别配置“本类型＋生产区 → 生产区域安全培训”“本类型＋研发区 → 研发区域安全培训”“本类型＋非生产区 → 非生产区域安全培训”，共享同一课程实体。交通安全或施工安全等课程按需要配置到物流车辆或施工人员的对应区域组合，不通过类型 Code 硬编码追加。
 
-提交时，以申请 VisitorTypeId 为固定条件，逐个匹配所选 VisitAreaId，取对应组合中启用且内容有效的 TrainingCourse。仅类型匹配或仅区域匹配均不能命中；不读取其他类型的区域课程，也不将独立的类型课程与区域课程直接合并。
+提交时，以申请 VisitTypeId 为固定条件，逐个匹配所选 VisitAreaId，取对应组合中启用且内容有效的 TrainingCourse。仅类型匹配或仅区域匹配均不能命中；不读取其他类型的区域课程，也不将独立的类型课程与区域课程直接合并。
 
 多个所选区域命中的课程取并集，按 TrainingCourseId 去重，随后为每位申请人员分别生成对应的首轮 TrainingRecord，并按第 6.1 节判断历史复用。同一课程被本类型的多个所选区域命中时，每人在本申请中只生成一个当前课程任务；后续因有效期届满新增的轮次不属于重复分配。业务及区域审批任务数量不受课程去重或免训影响。
 
@@ -512,7 +512,7 @@ Passed 为真时，以服务端交卷确认时刻写入所属 TrainingRecord 的
 
 Code 唯一。区域用于展示、关联培训方案及区域审批配置，不承担门禁授权或具体施工位置管理。
 
-### 7.2 VisitorType：登记类型与动态入口
+### 7.2 VisitType：登记类型与动态入口
 
 与 VisitArea 一样，作为后台基础配置维护，拥有公共 Id、创建时间及修改时间。用于定义登记入口展示、申请动态模板和车辆录入要求；普通访客、物流车辆、施工人员是初始配置，不是固定枚举值。
 
@@ -545,25 +545,25 @@ Code 唯一。区域用于展示、关联培训方案及区域审批配置，不
 - 修改启用类型的模板、须知或审批配置时仍须满足以上完整性要求；如需移除必要配置，先停用类型，避免出现可见但无法登记的入口。
 - 新类型复用统一的预约、人员、车辆、区域、审批和培训流程；类型专属申请信息由关联的动态模板提供，不新增申请实体、登记页面或枚举分支。
 - 停用类型后，不再显示对应新登记入口，也不接受该类型的新申请；历史申请、已有审批任务和培训记录继续保留，未结束申请仍可按原记录继续处理。
-- 被申请、须知、审批配置或培训组合配置引用的类型不得删除；历史申请用 VisitorTypeNameSnapshot 展示提交时名称，类型更名不改变历史显示。
+- 被申请、须知、审批配置或培训组合配置引用的类型不得删除；历史申请用 VisitTypeNameSnapshot 展示提交时名称，类型更名不改变历史显示。
 - 类型通过 VisitAreaTrainingCourse 与区域、课程共同关联；培训任务按申请类型与所选区域的组合配置生成，不增加仅按类型匹配的课程集合。
 
 前端动态入口约定（具体接口契约留待后续定义）：
 
-- 首页读取启用 VisitorType 列表，按 SortOrder 升序、同序时按 Code 排序；登记入口数量由配置决定，不固定为三个。
+- 首页读取启用 VisitType 列表，按 SortOrder 升序、同序时按 Code 排序；登记入口数量由配置决定，不固定为三个。
 - 入口展示使用 Name、Description、Caption、Color、Icon；缺少可选展示字段时使用前端默认样式，未知颜色或图标标识使用默认值，不影响新类型可用性。
-- 点击入口后以 VisitorTypeId 进入统一登记流程，按关联申请模板渲染业务字段，以同一 VisitorTypeId 获取须知和业务审批规则，并应用车辆录入要求。不得按初始三种 Code 选择固定登记页面。
-- 前端草稿和提交数据保存 VisitorTypeId。原有 visitor、logistics、contractor 值通过初始 Code 对应实体 Id；旧枚举不作为新提交数据的类型标识。
-- 继续学习入口独立保留，不由 VisitorType 列表生成。没有启用登记类型时，首页仍可提供继续学习及历史记录入口。
+- 点击入口后以 VisitTypeId 进入统一登记流程，按关联申请模板渲染业务字段，以同一 VisitTypeId 获取须知和业务审批规则，并应用车辆录入要求。不得按初始三种 Code 选择固定登记页面。
+- 前端草稿和提交数据保存 VisitTypeId。原有 visitor、logistics、contractor 值通过初始 Code 对应实体 Id；旧枚举不作为新提交数据的类型标识。
+- 继续学习入口独立保留，不由 VisitType 列表生成。没有启用登记类型时，首页仍可提供继续学习及历史记录入口。
 - 恢复草稿或提交时重新检查类型和必要配置；类型已停用或配置已变更导致数据不再有效时，保留已填内容并提示重新选择或补充，不能静默切换为其他类型。
 
-### 7.3 VisitorNotice：访客须知
+### 7.3 VisitNotice：访客须知
 
-按 VisitorType 分别维护须知内容，作为各自登记入口的弹窗内容来源，支持初始及后续新增的登记类型。
+按 VisitType 分别维护须知内容，作为各自登记入口的弹窗内容来源，支持初始及后续新增的登记类型。
 
 | 字段 | 类型 | 定义 |
 | --- | --- | --- |
-| VisitorTypeId | string | 关联适用的 VisitorType |
+| VisitTypeId | string | 关联适用的 VisitType |
 | Title | string | 本类型的须知标题 |
 | Content | string | 本类型的须知正文，使用可供小程序展示的文本内容 |
 | IsEnabled | bool | 是否为本类型当前使用的须知 |
@@ -576,20 +576,20 @@ Code 唯一。区域用于展示、关联培训方案及区域审批配置，不
 | 施工人员 | contractor | 后台配置的施工人员须知 |
 | 物流车辆 | logistics | 后台配置的物流车辆须知 |
 
-每个 VisitorTypeId 同一时间最多有一份启用须知，不同类型的须知可同时启用。新登记严格按当前申请 VisitorTypeId 匹配须知；该类型没有启用须知时，不能启用对应类型或完成新申请登记。
+每个 VisitTypeId 同一时间最多有一份启用须知，不同类型的须知可同时启用。新登记严格按当前申请 VisitTypeId 匹配须知；该类型没有启用须知时，不能启用对应类型或完成新申请登记。
 
-申请单关联对应须知，并保存接受时的正文快照和确认时间，之后编辑正文不改变历史确认内容或已有培训记录。已被申请引用的须知不得更改其 VisitorTypeId。
+申请单关联对应须知，并保存接受时的正文快照和确认时间，之后编辑正文不改变历史确认内容或已有培训记录。已被申请引用的须知不得更改其 VisitTypeId。
 
 本规则是对现有前端共用须知内容的需求调整，本轮只定义配置与实体关系，前端弹窗在后续接入时按类型读取相应内容。
 
-### 7.4 VisitorApprovalConfig：审批配置
+### 7.4 VisitApprovalConfig：审批配置
 
 配置分为类型业务审批与区域审批两类。业务审批配置按登记类型指定从哪个动态字段取得审批人；区域审批配置按访问区域指定负责人。两类配置都必须参与申请任务生成。
 
 | 字段 | 类型 | 定义 |
 | --- | --- | --- |
-| Kind | VisitorApprovalKind | Business 为类型业务审批配置，Area 为区域审批配置 |
-| VisitorTypeId | string? | 业务配置必填，关联 VisitorType 并匹配申请类型；区域配置为空 |
+| Kind | VisitApprovalKind | Business 为类型业务审批配置，Area 为区域审批配置 |
+| VisitTypeId | string? | 业务配置必填，关联 VisitType 并匹配申请类型；区域配置为空 |
 | VisitAreaId | string? | 区域配置必填，关联 VisitArea；业务配置为空 |
 | ApproverFieldKey | string? | 业务配置必填，指定保存审批人用户标识的动态字段键；区域配置为空 |
 | ApproverUserId | string? | 区域配置必填，指定后台负责人；业务配置为空，由申请动态字段取得具体人员 |
@@ -599,19 +599,19 @@ Code 唯一。区域用于展示、关联培训方案及区域审批配置，不
 
 | 审批职责 | 匹配依据 | 审批人来源 | 生成任务 |
 | --- | --- | --- | --- |
-| 普通访客业务审批 | Kind = Business、VisitorTypeId 对应 Code = visitor 的类型 | 动态字段 hostUserId 中选定的被访人 | 一条 Business 任务 |
-| 施工人员业务审批 | Kind = Business、VisitorTypeId 对应 Code = contractor 的类型 | 动态字段 supervisorUserId 中选定的现场负责人 | 一条 Business 任务 |
-| 物流车辆业务审批 | Kind = Business、VisitorTypeId 对应 Code = logistics 的类型 | 动态字段 logisticsContactUserId 中选定的对接人员 | 一条 Business 任务 |
-| 后续新增类型业务审批 | Kind = Business、VisitorTypeId = 新增类型 Id | 本类型 ApproverFieldKey 指定的动态用户字段 | 一条 Business 任务 |
+| 普通访客业务审批 | Kind = Business、VisitTypeId 对应 Code = visitor 的类型 | 动态字段 hostUserId 中选定的被访人 | 一条 Business 任务 |
+| 施工人员业务审批 | Kind = Business、VisitTypeId 对应 Code = contractor 的类型 | 动态字段 supervisorUserId 中选定的现场负责人 | 一条 Business 任务 |
+| 物流车辆业务审批 | Kind = Business、VisitTypeId 对应 Code = logistics 的类型 | 动态字段 logisticsContactUserId 中选定的对接人员 | 一条 Business 任务 |
+| 后续新增类型业务审批 | Kind = Business、VisitTypeId = 新增类型 Id | 本类型 ApproverFieldKey 指定的动态用户字段 | 一条 Business 任务 |
 | 区域审批 | Kind = Area、VisitAreaId = 每个所选区域 | 配置中的 ApproverUserId | 每个区域一条 Area 任务 |
 
 配置约束：
 
-- Kind = Business 时，VisitorTypeId、ApproverFieldKey 必填，VisitAreaId、ApproverUserId 为空；Kind = Area 时，VisitAreaId、ApproverUserId 必填，VisitorTypeId、ApproverFieldKey 为空。两类来源互斥，不能同时填写动态来源和固定负责人。
-- 每个 VisitorTypeId 同一时间最多有一份启用业务配置；每个区域同一时间最多有一份启用区域配置。所有登记类型的业务审批均不能省略，区域审批也不替代业务审批。
+- Kind = Business 时，VisitTypeId、ApproverFieldKey 必填，VisitAreaId、ApproverUserId 为空；Kind = Area 时，VisitAreaId、ApproverUserId 必填，VisitTypeId、ApproverFieldKey 为空。两类来源互斥，不能同时填写动态来源和固定负责人。
+- 每个 VisitTypeId 同一时间最多有一份启用业务配置；每个区域同一时间最多有一份启用区域配置。所有登记类型的业务审批均不能省略，区域审批也不替代业务审批。
 - 业务配置的 ApproverFieldKey 必须指向该类型模板中保存后台用户标识的字段；不能配置为 hostName、supervisor 等姓名文本，也不接受无法定位账号的自由文本。启用时检查字段定义，提交时检查实际选择的用户是否可用且有审批权限。
 - 区域配置启用时负责人必须是可用且有审批权限的后台用户。申请选中两个或三个区域时，逐个匹配配置；不沿用培训方案去重结果决定审批任务数量。
-- 提交时把配置标识和解析出的具体审批人保存到任务。之后调整动态字段来源、区域负责人或停用配置只影响新申请；被任务引用的配置保留，不更改其 Kind、VisitorTypeId 或 VisitAreaId。
+- 提交时把配置标识和解析出的具体审批人保存到任务。之后调整动态字段来源、区域负责人或停用配置只影响新申请；被任务引用的配置保留，不更改其 Kind、VisitTypeId 或 VisitAreaId。
 - 同一用户可同时承担业务和区域职责，各职责仍有独立任务和结果。第一版建议每条任务一位审批人、任务并行；后续如需多个候选人、会签、转交或先后顺序，再明确对应规则。
 
 ## 8. 实体关系
@@ -619,32 +619,32 @@ Code 唯一。区域用于展示、关联培训方案及区域审批配置，不
 | 关联关系 | 关联实体 | 含义 |
 | --- | --- | --- |
 | VisitApplication ↔ VisitArea | VisitApplicationArea | 一单多区域，一个区域关联多张申请 |
-| VisitorType＋VisitArea ↔ TrainingCourse | VisitAreaTrainingCourse | 一个类型与区域组合对应多个方案，同一方案可用于多个组合 |
+| VisitType＋VisitArea ↔ TrainingCourse | VisitAreaTrainingCourse | 一个类型与区域组合对应多个方案，同一方案可用于多个组合 |
 
 下图通过关联实体展开申请与区域的多对多关系，以及登记类型、区域与培训方案的组合配置关系。
 
-登记类型与申请单是一对多关系，每张申请必须关联一个 VisitorType。登记类型与须知、业务审批配置也是一对多关系，分别限制同一类型最多一份启用配置；申请模板通过 VisitorType.ApplicationTemplateId 关联框架已有动态模块，不新增模板实体。
+登记类型与申请单是一对多关系，每张申请必须关联一个 VisitType。登记类型与须知、业务审批配置也是一对多关系，分别限制同一类型最多一份启用配置；申请模板通过 VisitType.ApplicationTemplateId 关联框架已有动态模块，不新增模板实体。
 
 ```mermaid
 erDiagram
     MiniProgramUser ||--o{ VisitApplication : submits
-    VisitorType ||--o{ VisitApplication : classifies
-    VisitorType ||--o{ VisitorNotice : configures
-    VisitorType |o--o{ VisitorApprovalConfig : business_config_only
+    VisitType ||--o{ VisitApplication : classifies
+    VisitType ||--o{ VisitNotice : configures
+    VisitType |o--o{ VisitApprovalConfig : business_config_only
     VisitApplication ||--|{ Participant : contains
     VisitApplication ||--o{ Vehicle : contains
     VisitApplication ||--|{ VisitApplicationArea : selects
     VisitArea ||--o{ VisitApplicationArea : referenced_by
-    VisitApplication ||--|{ VisitorApprovalTask : requests_review
-    VisitApplicationArea |o--|| VisitorApprovalTask : area_task_only
-    VisitArea ||--o{ VisitorApprovalConfig : configures
-    VisitorApprovalConfig ||--o{ VisitorApprovalTask : generates
-    VisitorNotice ||--o{ VisitApplication : accepted_in
+    VisitApplication ||--|{ VisitApprovalTask : requests_review
+    VisitApplicationArea |o--|| VisitApprovalTask : area_task_only
+    VisitArea ||--o{ VisitApprovalConfig : configures
+    VisitApprovalConfig ||--o{ VisitApprovalTask : generates
+    VisitNotice ||--o{ VisitApplication : accepted_in
     TrainingCourse ||--|{ TrainingVideo : contains
     TrainingCourse ||--|{ TrainingQuestion : contains
     TrainingCourse ||--o{ VisitAreaTrainingCourse : linked_by
     VisitArea ||--o{ VisitAreaTrainingCourse : links
-    VisitorType ||--o{ VisitAreaTrainingCourse : scopes
+    VisitType ||--o{ VisitAreaTrainingCourse : scopes
     VisitApplication ||--|{ TrainingRecord : owns
     Participant ||--|{ TrainingRecord : learns
     TrainingRecord |o--o{ TrainingRecord : actual_pass_reused_by
@@ -652,7 +652,7 @@ erDiagram
     TrainingRecord ||--o{ ExamAttempt : attempts
 ```
 
-关系图中的至少一个人员、区域、审批任务、培训记录，以及课程的视频和题目要求，适用于已提交申请和可分配课程。每张申请恰有一条业务任务，每个申请区域恰有一条区域任务；业务任务不关联申请区域。VisitorType 仅关联 Kind = Business 的配置，按 VisitorTypeId 匹配；VisitArea 仅关联 Kind = Area 的配置。业务配置必须关联登记类型，区域配置必须关联访问区域。配置编辑过程可存在尚未满足这些要求的草稿内容，但不能据此启用登记类型或生成申请任务。
+关系图中的至少一个人员、区域、审批任务、培训记录，以及课程的视频和题目要求，适用于已提交申请和可分配课程。每张申请恰有一条业务任务，每个申请区域恰有一条区域任务；业务任务不关联申请区域。VisitType 仅关联 Kind = Business 的配置，按 VisitTypeId 匹配；VisitArea 仅关联 Kind = Area 的配置。业务配置必须关联登记类型，区域配置必须关联访问区域。配置编辑过程可存在尚未满足这些要求的草稿内容，但不能据此启用登记类型或生成申请任务。
 
 固定字段 TimeSlot 的选项来自框架已有 PicklistSet，动态字段 `visitReason` 的选项来自字段定义的 metadata，申请分别保留各字段的提交值。本图不重复定义框架已有 PicklistSet 或动态模块的内部实体。
 
@@ -662,15 +662,15 @@ erDiagram
 
 | 当前前端数据 | 后端实体或字段 |
 | --- | --- |
-| 首页固定的普通访客、物流车辆、施工人员登记入口 | 启用 VisitorType 的有序列表，通过 Name、Description、Caption、Color、Icon 动态展示，三类仅为初始数据 |
-| 当前登记类型值 visitor、logistics、contractor | 初始 VisitorType.Code；后续草稿、申请、须知与审批匹配使用 VisitorTypeId，历史类型名称使用 VisitorTypeNameSnapshot |
-| 新增类型的登记业务表单与车辆录入要求 | VisitorType.ApplicationTemplateId、VehicleRequired、TransportCompanyRequired |
-| training 与首页继续学习入口 | 独立的已有任务查询流程，不对应 VisitorType 记录 |
+| 首页固定的普通访客、物流车辆、施工人员登记入口 | 启用 VisitType 的有序列表，通过 Name、Description、Caption、Color、Icon 动态展示，三类仅为初始数据 |
+| 当前登记类型值 visitor、logistics、contractor | 初始 VisitType.Code；后续草稿、申请、须知与审批匹配使用 VisitTypeId，历史类型名称使用 VisitTypeNameSnapshot |
+| 新增类型的登记业务表单与车辆录入要求 | VisitType.ApplicationTemplateId、VehicleRequired、TransportCompanyRequired |
+| training 与首页继续学习入口 | 独立的已有任务查询流程，不对应 VisitType 记录 |
 | Draft | 提交前仍作为前端草稿，草稿 id 对应 ClientRequestId |
 | Visit | VisitApplication |
 | 新增的申请流程状态、整单审批结论时间和进出厂信息 | VisitApplication.Status、ReviewedAt、CheckedInAt、CheckedOutAt |
-| 新增的业务及区域审批待办和意见 | VisitorApprovalTask，包含一条业务任务及各区域任务，各自保存审批人、状态、时间和意见 |
-| 新增的业务审批人取值规则及区域负责人配置 | VisitorApprovalConfig，业务配置按 VisitorTypeId 指定动态字段来源，区域配置按 VisitAreaId 指定负责人 |
+| 新增的业务及区域审批待办和意见 | VisitApprovalTask，包含一条业务任务及各区域任务，各自保存审批人、状态、时间和意见 |
+| 新增的业务审批人取值规则及区域负责人配置 | VisitApprovalConfig，业务配置按 VisitTypeId 指定动态字段来源，区域配置按 VisitAreaId 指定负责人 |
 | appointmentDate、timeSlot | VisitApplication 的通用固定字段 |
 | 预约时段的下拉选项 | 框架已有 PicklistSet，所选值保存到固定字段 TimeSlot |
 | 到访事由的下拉选项 | 动态字段 visitReason 定义的 metadata |
@@ -685,7 +685,7 @@ erDiagram
 | Vehicle | Vehicle，保存车牌、运输单位等车辆资料，业务要求由申请类型决定 |
 | AccompanyingVehicle | Vehicle，归属于申请单，当前前端仅填写车牌 |
 | areaIds | VisitApplicationArea 关联的 VisitArea |
-| 登记类型及所选区域共同匹配的培训方案 | 按 VisitorTypeId＋VisitAreaId 匹配 VisitAreaTrainingCourse 关联的启用 TrainingCourse，多个区域命中的课程合并去重 |
+| 登记类型及所选区域共同匹配的培训方案 | 按 VisitTypeId＋VisitAreaId 匹配 VisitAreaTrainingCourse 关联的启用 TrainingCourse，多个区域命中的课程合并去重 |
 | Plan | TrainingCourse＋TrainingVideo＋TrainingQuestion |
 | 新增的培训方案 PDF 资料 | TrainingCourse.PdfSource、PdfFileName，并保留到个人课程快照 |
 | Lesson | TrainingVideo |
@@ -698,8 +698,8 @@ erDiagram
 | lastResult | 当前实际学习轮次最近一次已交卷 ExamAttempt 的结果；复用记录展示免训来源，不伪造本轮考试成绩 |
 | 新增的免训说明与有效截止时间 | TrainingRecord.ReusedFromTrainingRecordId、CompletedAt、ValidUntil |
 | 新增的后台培训有效期维护 | 培训管理中逐课程维护 TrainingCourse.TrainingValidityDays，每门默认 60 天 |
-| noticeAccepted | VisitorNoticeId、NoticeContentSnapshot、NoticeAcceptedAt 对应的确认事实 |
-| 访客须知弹窗标题与正文 | 按申请 VisitorTypeId 获取对应 VisitorNotice 的 Title、Content |
+| noticeAccepted | VisitNoticeId、NoticeContentSnapshot、NoticeAcceptedAt 对应的确认事实 |
+| 访客须知弹窗标题与正文 | 按申请 VisitTypeId 获取对应 VisitNotice 的 Title、Content |
 
 后续接入时，首页由后台启用类型配置生成登记入口；新增类型后使用统一登记流程和关联动态模板，不再维护只允许 visitor、logistics、contractor 的入口数组或类型分支。前端 SPEC 中固定四个入口的描述记录当前实现，本轮的动态入口约定作为后续接入要求；本轮只调整后端 SPEC，不修改前端实现。
 
@@ -709,23 +709,23 @@ erDiagram
 
 现有前端 hostName、supervisor 为姓名文本，后续接入审批时增加对应后台人员选择与用户标识，姓名保留用于展示；物流动态模板增加对接人员选择。本轮只调整 SPEC，不修改前端实现。
 
-前端“一单三人、两门课程”的示例，对应三条 Participant、六条首轮 TrainingRecord。其中可包含有效历史结果复用记录；需要实际学习的记录才拥有本轮视频进度及 ExamAttempt。若选择三个访问区域，还对应四条 VisitorApprovalTask：一条业务任务、三条区域任务。在 AppointmentDate 当天，四条审批任务全部通过后，张三自己的两门课程均有效合格即可确认张三进厂，即使李四、王五尚未完成培训；李四、王五分别满足本人两门课程的有效合格要求后，才可在申请未结束且仍为预约日当天时确认本人进厂。每人每门课程的当前轮次均有效合格只表示整单当前培训合格；过期重训可以增加历史轮次，但不增加必修课程数。所有实际进厂人员出厂并确认整单结束后，申请正常结束。预约时段不参与进厂判断。
+前端“一单三人、两门课程”的示例，对应三条 Participant、六条首轮 TrainingRecord。其中可包含有效历史结果复用记录；需要实际学习的记录才拥有本轮视频进度及 ExamAttempt。若选择三个访问区域，还对应四条 VisitApprovalTask：一条业务任务、三条区域任务。在 AppointmentDate 当天，四条审批任务全部通过后，张三自己的两门课程均有效合格即可确认张三进厂，即使李四、王五尚未完成培训；李四、王五分别满足本人两门课程的有效合格要求后，才可在申请未结束且仍为预约日当天时确认本人进厂。每人每门课程的当前轮次均有效合格只表示整单当前培训合格；过期重训可以增加历史轮次，但不增加必修课程数。所有实际进厂人员出厂并确认整单结束后，申请正常结束。预约时段不参与进厂判断。
 
 React 前端已使用模拟课程有效期和浏览器本地记录实现历史免训、当前轮次及过期重训展示，按姓名＋手机号与同一课程匹配有效结果；新版直接清除旧演示缓存。真实后台课程有效期维护、服务端有效性判断及实际进厂校验仍为后续后台与接口接入要求，前端模拟结果不构成真实通行授权。
 
 ## 10. 模型检查要点
 
-- VisitorType 是与 VisitArea 同类的基础配置实体，支持动态新增、编辑、排序和停用；普通访客、物流车辆、施工人员为初始数据，学习培训不属于登记类型。
-- 申请、须知与业务审批配置均通过 VisitorTypeId 关联类型，不再使用 VisitorType 枚举；申请保存提交时的类型名称快照。
-- 首页入口数量及展示由启用 VisitorType 决定，新类型通过关联申请模板、须知、业务审批配置和车辆要求复用统一登记流程。
+- VisitType 是与 VisitArea 同类的基础配置实体，支持动态新增、编辑、排序和停用；普通访客、物流车辆、施工人员为初始数据，学习培训不属于登记类型。
+- 申请、须知与业务审批配置均通过 VisitTypeId 关联类型，不再使用 VisitType 枚举；申请保存提交时的类型名称快照。
+- 首页入口数量及展示由启用 VisitType 决定，新类型通过关联申请模板、须知、业务审批配置和车辆要求复用统一登记流程。
 - 类型启用前必须具备有效模板、启用须知和业务审批配置；停用后拒绝新申请，但保留历史及已有未结束申请的审批、培训能力。
 - 三类初始登记的现有字段均有归属：通用字段固定保存，类型专属字段使用动态模板，申请级信息不按人员重复保存。
 - VisitApplication 不包含被访人、到访事由、项目名称、施工位置、施工单位或现场负责人的固定业务属性。
 - 动态模板保留既有字段键、初始必填规则及选项来源，历史申请保留提交时的字段解释和值。
 - TimeSlot 是固定字段，其选项通过框架已有 PicklistSet 维护，仅用于登记和展示，不参与后续判断；动态下拉字段的选项通过字段 metadata 维护，不新增专用登记选项表。
 - AppointmentDate 按工厂业务时区限制每位人员首次进厂的日期；服务端在确认进厂时校验，预约日之前及之后均不能进厂。已进厂人员可以跨日出厂，日期不匹配不自动改变申请状态。
-- 申请与区域为多对多关联；培训方案同时按申请 VisitorTypeId 和每个所选 VisitAreaId 匹配，多个组合命中的课程取并集并去重，不因选择多个区域重复生成培训记录。
-- VisitAreaTrainingCourse 使用 VisitorTypeId＋VisitAreaId＋TrainingCourseId 唯一组合，三个关联均必填；每个所选区域在当前类型下至少有一门有效启用课程，缺少配置时不能提交。
+- 申请与区域为多对多关联；培训方案同时按申请 VisitTypeId 和每个所选 VisitAreaId 匹配，多个组合命中的课程取并集并去重，不因选择多个区域重复生成培训记录。
+- VisitAreaTrainingCourse 使用 VisitTypeId＋VisitAreaId＋TrainingCourseId 唯一组合，三个关联均必填；每个所选区域在当前类型下至少有一门有效启用课程，缺少配置时不能提交。
 - 一张申请拥有独立人员记录，另一张申请仍创建自己的培训记录，按姓名＋手机号及同一课程关联有效的历史实际通过结果；免训不新建考试，也不刷新来源有效期。
 - TrainingValidityDays 属于 TrainingCourse，在后台培训管理中逐课程维护，每门默认 60 天且为正整数；实际通过时按该课程当前值保存 ValidUntil，修改不追溯已有结果、不影响其他课程。
 - 申请提交后业务审批与所需学习并行；待审批期间可学习答题。个人进厂必须在 AppointmentDate 当天、整单审批通过且本人全部必修课程的当前轮次有效合格，其他人员培训未通过不阻止本人进厂。
@@ -740,14 +740,14 @@ React 前端已使用模拟课程有效期和浏览器本地记录实现历史�
 - 申请进厂时间取首位人员进厂时间；所有实际进厂人员均出厂且确认整单结束后，申请出厂时间取最后一位人员出厂时间。未到访人员不补写时间。
 - 身份证号码和上传附件保存到对应申请人员；附件为可选单文件，不改变姓名＋手机号的任务匹配方式。
 - 培训记录按申请人员生成，车辆不参与人员创建、归并或课程分配。
-- 车辆统一归属于申请单，不设置车辆类型，不维护司机信息或人员关联；车辆及运输单位必填规则来自 VisitorType 配置，车辆不增加人员数或课程数。
+- 车辆统一归属于申请单，不设置车辆类型，不维护司机信息或人员关联；车辆及运输单位必填规则来自 VisitType 配置，车辆不增加人员数或课程数。
 - 个人课程记录按申请、人员、课程及 RoundNumber 唯一，当前轮次取最大值；视频进度和考试记录按轮次隔离，过期重训保留原记录。
 - 任务查询与个人进厂检查使用服务端时刻识别过期结果；过期课程生成新轮次，只有有效合格的当前轮次参与进厂校验。已进厂人员不因培训过期自动改变在厂状态。
 - 课程、视频、题库和类型＋区域培训组合配置修改后，已有记录继续采用原快照。
 - 单选与多选题的标准答案和作答均使用选项集合，题型与答案保留在课程快照中，多选按完全匹配评分。
 - 培训方案可选 PDF 资料支持查看和下载；PDF 配置保留到课程快照，不改变视频与考试完成判定。
 - 预约、事由、区域和须知调整后，历史申请仍能展示提交时内容。
-- 所有登记类型的申请分别匹配同一 VisitorTypeId 的启用须知，不能关联其他类型须知；每种类型最多一份启用。
+- 所有登记类型的申请分别匹配同一 VisitTypeId 的启用须知，不能关联其他类型须知；每种类型最多一份启用。
 - 培训记录为独立主导航，能通过人员、申请、课程及历次考试关联查看数据。
 
 个人进厂验收场景（后续实现时验证）：
@@ -781,7 +781,7 @@ React 前端已使用模拟课程有效期和浏览器本地记录实现历史�
 1. 为普通访客＋生产区配置生产区域安全培训，为施工人员＋生产区配置生产区域安全培训和施工安全培训。同样选择生产区，普通访客只得到前一门课程，施工人员得到两门课程，其他类型的配置不能混入。
 2. 为物流车辆＋生产区配置生产区域安全培训和交通安全培训，为物流车辆＋非生产区配置非生产区域安全培训和同一交通安全课程。一单三人选择这两个区域时，合并去重后每人三门课程，共九条 TrainingRecord；仍生成一条业务审批和两条区域审批任务。
 3. 只有普通访客＋研发区的有效配置时，施工人员选择研发区应被拒绝。当前类型选择两个区域而其中一个缺少有效课程时，即使另一区域已有课程，也不生成申请或任务。
-4. 重复保存同一 VisitorTypeId＋VisitAreaId＋TrainingCourseId 组合应被拒绝；同一课程用于其他类型或区域组合可以保存，共享课程不重复创建。
+4. 重复保存同一 VisitTypeId＋VisitAreaId＋TrainingCourseId 组合应被拒绝；同一课程用于其他类型或区域组合可以保存，共享课程不重复创建。
 5. 新增设备维护人员类型并配置本类型＋研发区的课程后，新申请按该组合生成任务；其他类型的组合不自动继承。修改、移除组合或停用课程后，新申请重新匹配，已有任务和课程快照保持原值。
 
 动态类型验收场景（后续实现时验证）：
