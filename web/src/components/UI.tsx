@@ -8,12 +8,12 @@ export function Icon({ name, size = 24, className = '' }: { name: string; size?:
 export function notifyError(error: unknown) {
   Toast.show({ content: error instanceof Error ? error.message : '操作失败，请重试', duration: 2500 })
 }
-export function Screen({ title, children, backTo = '/', tabs = false }: { title?: string; children: ReactNode; backTo?: string; tabs?: boolean }) {
+export function Screen({ title, children, backTo = '/', tabs = false, className = '' }: { title?: string; children: ReactNode; backTo?: string; tabs?: boolean; className?: string }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   // History traversal commits eagerly in React; keep a simple entry fade for it.
   const animateEntry = useNavigationType() === 'POP' || typeof document.startViewTransition !== 'function'
-  return <ViewTransition key={pathname} default="none" enter="page-enter" exit="page-exit"><div className={`screen ${tabs ? 'with-tabs' : ''} ${animateEntry ? 'page-fallback-enter' : ''}`}>
+  return <ViewTransition key={pathname} default="none" enter="page-enter" exit="page-exit"><div className={`screen ${tabs ? 'with-tabs' : ''} ${animateEntry ? 'page-fallback-enter' : ''} ${className}`}>
     {title && <header className="page-header"><NavBar onBack={() => navigate(backTo)}>{title}</NavBar></header>}
     <main className="page-content">{children}</main>
     {tabs && <BottomTabs />}
@@ -24,7 +24,7 @@ export function BottomTabs() {
   const navigate = useNavigate()
   return <nav className="bottom-tabs" aria-label="主导航"><TabBar activeKey={pathname === '/' ? '/' : '/records'} onChange={key => navigate(key)}>
     <TabBar.Item key="/" title="首页" icon={<Icon name={pathname === '/' ? 'home-active.png' : 'home.png'} />} />
-    <TabBar.Item key="/records" title="我的" icon={<Icon name="user" />} />
+    <TabBar.Item key="/records" title="我的" icon={<Icon name={pathname === '/' ? 'user.png' : 'user'} />} />
   </TabBar></nav>
 }
 export function Actions({ children }: { children: ReactNode }) { return <div className="bottom-actions"><div className="flex gap-3">{children}</div></div> }
