@@ -1,12 +1,12 @@
 # VisitSafe API SPEC：React 手机端与 ASP.NET Minimal API
 
-更新日期：2026-10-20。版本：v2 聚合接口设计稿；请求路径仍使用 `/api/v1`。本文件为待实现契约，不表示 API 已接入。
+更新日期：2026-10-20。版本：v3 全量基础数据与本地预判断设计稿；请求路径仍使用 `/api/v1`。本文件为待实现契约，不表示 API 已接入。
 
 ## 1. 本次 review 与设计目标
 
 以 [后端 SPEC](VisitSafe-Backend-SPEC.md) 的实体和业务规则为准，覆盖 [React 手机端 SPEC](VisitSafe-React-Mobile-SPEC.md) 的登记、申请、学习、考试与记录流程。当前 React 继续使用本地存储；本次只调整本文，不实现 API、修改页面或部署。
 
-本次将手机端接口从 **23 个收敛为 14 个**。核心要求是：一次读取返回当前页面所需的数据，操作成功返回操作后页面的数据，减少客户端为组装页面连续补查。
+本次将手机端接口从初稿 **23 个、上一轮 14 个进一步收敛为 12 个**。基础数据在首次 bootstrap 中全量读取，后续类型切换、表单生成、用户搜索、区域课程匹配及常规预校验都在本地完成；动态业务按页面聚合读取，操作响应直接更新页面，减少重复请求。
 
 旧稿还存在以下业务冲突，本次一并修正：
 
@@ -20,8 +20,10 @@
 
 | 旧接口职责 | 本版契约 | 减少的调用 |
 | --- | --- | --- |
-| client-context＋bootstrap | POST bootstrap 同时建立上下文、返回首页配置与统计 | 首页不先取上下文再取首页 |
-| registration-config＋training-course-preview | registration-context 返回表单、须知、区域及课程映射 | 切换区域、查看确认页不再调用课程预览 |
+| client-context＋bootstrap | POST bootstrap 同时建立上下文、返回全部基础数据与首页统计 | 首页及后续各类型登记共用首次加载结果 |
+| registration-config＋registration-context＋training-course-preview | bootstrap 下发所有启用类型的表单、须知、规则及类型区域课程映射 | 进入或切换登记类型、改区域、查看确认页均不请求配置 |
+| 动态用户 user-options 搜索 | bootstrap 下发允许选择的用户摘要及字段候选 Id 集合，前端本地搜索 | 不按关键词、按字或翻页请求审批候选 |
+| 登记时带入人员／车辆档案 | 同一 bootstrap 可附带精确键，批量匹配当前浏览器有权读取的资料 | 不新增档案查询接口，也不为匹配重复传输未变的基础数据 |
 | 申请详情＋training-tasks/query | application workspace 返回申请、人员、车辆、审批摘要及当前任务 | 详情页和任务页共用同一份数据 |
 | 提交申请后再查任务 | 创建申请直接返回 application workspace | 提交成功可直接显示任务页 |
 | 培训内容＋考试恢复＋结果＋考试历史＋凭证 | training workspace 返回本轮完整学习视图 | 视频、考试、结果、凭证页面共用同一份数据 |
@@ -29,15 +31,29 @@
 | 逐题 answers＋submit | exam save 批量保存变更题目，可同时交卷 | 连续修改可合并，最后一批答案与交卷一次提交 |
 | 临时附件 DELETE | 未绑定附件到期自动回收 | 取消编辑无需发清理请求 |
 
-上传与动态用户搜索独立保留：文件使用 multipart，用户搜索按输入及分页读取，不把全量人员和文件塞进页面初始化响应。
+上传继续使用独立 multipart 接口。基础数据中的用户仅为当前登记允许选择的候选摘要，不是后台全员账号或访客档案；用户筛选在本地完成。个人档案、申请、培训记录、试卷及媒体文件仍按访问范围和实际需要读取。
 
-### 1.2 聚合边界
+### 1.2 一次加载与复用边界
 
-- 聚合单位是页面及其紧邻的下一步，不是全站数据。首页不下载全部类型表单；申请不预载全部人的视频地址和试卷。
-- 申请面板仅含任务卡片所需课程信息；用户打开某一课程时再取该课程的 training workspace。
-- 写入接口返回最新 workspace，前端直接使用，不立即追加同一资源的读取。用户主动刷新、外部状态可能变化或文件地址到期时再读取。
-- 后端在业务服务内批量查询、组装 DTO；避免通过 HTTP 调用本服务的其他接口，也避免逐人员、逐课程重复查询。
-- 聚合不扩大权限，不取消分页，也不把事务边界不同的操作强行合并。
+- 首次一次取得全部可用基础配置，不再按登记类型拆分读取。区域、课程和可选用户用共享集合保存，各类型通过 Id 引用，避免在多个类型里重复返回相同内容。
+- 基础数据包括启用类型、每类型表单及须知、全局时段和下拉选项、人员车辆规则、区域、课程摘要、类型区域课程映射、可选审批人员及前端校验约束。
+- 动态业务数据仍以页面聚合：申请一次返回详情和任务；某课程一次返回学习、考试、结果、历史及凭证。不在基础数据里装入全站个人资料、题库答案、申请或视频文件。
+- 写入响应直接更新本地页面缓存、关联任务及汇总，不立即补查。普通页面切换、类型切换、筛选、返回和恢复前台不默认发请求；刷新触发规则见第 5、12 节。
+- 后端在业务服务内批量查询、组装 DTO，避免逐类型、逐人员、逐课程的重复查询，也不通过 HTTP 调用自身其他接口组装结果。
+
+### 1.3 本地判断与服务端复核
+
+| 事项 | 前端使用已加载数据完成 | 服务端执行最终校验 |
+| --- | --- | --- |
+| 登记表单 | 按类型生成字段、显示须知、字段必填、长度及数值范围、选项合法性、只读字段显示 | 提交时按当前模板、配置和须知版本复核，不信任客户端派生值 |
+| 人员和车辆 | 姓名手机号去首尾空格、车牌规范化、格式检查、本次名单去重、单位继承、车辆和运输单位必填 | 按相同规则复核并处理全局档案唯一性及并发 |
+| 审批候选 | 按字段候选 Id 集合筛选，按显示姓名本地搜索、选择及带入显示值 | 提交时确认账号仍启用且具备对应资格，审批和通行权限始终由后端判断 |
+| 区域及课程 | 区域可选状态、按类型区域映射取课程并集、去重、排序、人数与课程数量预览 | 提交时确认区域与组合配置仍有效，确定本次必修集合及真实任务关联 |
+| 预约及须知 | 按业务时区计算今天、日期与时段预校验，须知倒计时、勾选及页面跳转 | 保存首次确认，校验当前提交版本及真实进厂条件 |
+| 任务与结果展示 | 个人／全部筛选、进度计数；基于已返回的实际结果及通过时间、截止时间计算当前展示是否有效 | 提交时决定免训及轮次分配，操作时校验当前关联和实际有效性；进厂时再次检查 |
+| 学习和考试 | 已完成视频计数、下一步按钮、已答题数、答案集合格式、剩余时间、未答完提示 | 视频写入、考试创建、截止时间、并发版本、最终评分及有效期 |
+
+本地预校验失败直接提示，不请求“校验”“课程预览”或“下一步”接口。本地结果用于及时展示和减少无效请求；提交、权限、全局唯一性、轮次分配、评分及实际放行必须由服务端复核。未交卷时不下发标准答案，不在本地判对错或生成真实成绩。
 
 ## 2. 通用协议、幂等与版本
 
@@ -114,15 +130,13 @@ Cookie／服务端会话是访问凭证；ClientId 本身不作为访问凭证�
 
 默认同源部署，网页 `/`、API `/api/v1`；代理保留 JSON 错误，不能将 API 404 回退为 index.html。跨源时显式配置可信 Origin、凭据及需要暴露的响应头，不使用通配来源配合 Cookie。本轮不修改部署。
 
-## 4. 手机端接口清单：14 个
+## 4. 手机端接口清单：12 个
 
 B＝当前匿名浏览器；O＝当前浏览器已获授权的申请；L＝按第 3 节校验的申请学习范围或个人学习凭证。bootstrap 只返回填写所需配置和当前浏览器统计，不返回后台题库或全站申请。
 
 | 方法 | 路径（省略 `/api/v1`） | 一次返回／操作内容 | 范围 |
 | --- | --- | --- | --- |
-| POST | `/bootstrap` | 浏览器上下文、启用类型、首页统计；可预载一个指定类型的登记上下文 | B |
-| POST | `/registration-context` | 指定类型的表单、须知、人员车辆规则、时段、区域课程映射及已授权档案带入 | B |
-| GET | `/visit-types/{visitTypeId}/user-options` | 动态用户字段按关键词分页搜索 | B |
+| POST | `/bootstrap` | 上下文、全部基础数据、首页统计；可批量匹配已授权档案，已有版本不重复传输配置 | B |
 | POST | `/participant-attachments` | 上传一份可选人员附件 | B |
 | POST | `/applications` | 提交申请，返回可直接展示的 application workspace | B |
 | GET | `/applications` | 我的记录、搜索、分页和统计 | B |
@@ -137,13 +151,23 @@ B＝当前匿名浏览器；O＝当前浏览器已获授权的申请；L＝按�
 
 workspace 使用 POST：申请读取可能刷新过期任务关联，培训读取可能进行已到期考试的结算。重复调用不得重复创建轮次或考试，不能因读取重置任何开始时间。
 
-后台边界另见第 10 节，不计入这 14 个手机端接口。
+后台边界另见第 10 节，不计入这 12 个手机端接口。
 
-## 5. 首页、登记上下文与附件
+## 5. 一次加载基础数据、缓存与附件
 
-### 5.1 bootstrap
+### 5.1 bootstrap 请求和响应
 
-请求体可省略，或 `{ "visitTypeId": 1 }`，返回 200：
+首次请求体可省略，等同没有缓存版本及没有档案匹配键。恢复基础数据缓存、或确有档案带入需求时，可发送：
+
+```json
+{
+  "knownBaseDataVersion": "base-data-v3",
+  "participantKeys": [{ "name": "张三", "phone": "13800138000" }],
+  "plates": ["沪A12345"]
+}
+```
+
+首次没有完整缓存时 knownBaseDataVersion 省略或为 null。participantKeys、plates 可省略，分别最多 20 项；可以随首次请求一次发送草稿里已有的精确键。成功返回 200：
 
 ```typescript
 interface VisitTypeDto {
@@ -158,36 +182,8 @@ interface VisitTypeDto {
   vehicleRequired: boolean
   transportCompanyRequired: boolean
 }
-interface BootstrapDto {
-  clientContext: ClientContextDto
-  visitTypes: VisitTypeDto[]
-  totals: { applicationCount: number; pendingTrainingCount: number }
-  registration: RegistrationContextDto | null
-}
-```
-
-只返回启用且基础配置完整的登记类型。学习入口独立，类型为空也可查本人任务。Code 不作为固定前端类型分支；未知图标、颜色使用默认值。
-
-首页不预载全部表单；直接打开登记页时可指定一个 visitTypeId，首次请求同时取得上下文和该表单，不强制先 bootstrap 再 registration-context。预载类型失效时仍可建立上下文，registration=null，页面根据启用类型提示不能新建。
-
-pendingTrainingCount 在当前浏览器可访问的申请范围内按真实 TrainingRecord 去重，统计当前未完成任务；不将无继续培训需求的过期历史算作未完成，也不统计其他浏览器或全站任务。
-
-### 5.2 registration-context
-
-请求指定 visitTypeId；可附带需要带入资料的精确键，每种最多 20 项：
-
-```json
-{
-  "visitTypeId": 1,
-  "participantKeys": [{ "name": "张三", "phone": "13800138000" }],
-  "plates": ["沪A12345"]
-}
-```
-
-不传 participantKeys、plates 时使用空集合，不影响首次表单加载。返回 200：
-
-```typescript
 interface OptionDto { value: string; label: string }
+interface UserOptionDto { id: UserId; displayName: string }
 interface FieldDto {
   key: string
   label: string
@@ -195,8 +191,12 @@ interface FieldDto {
   required: boolean
   readOnly: boolean
   sortOrder: number
+  minLength: number | null
   maxLength: number | null
+  minimum: number | null
+  maximum: number | null
   options: OptionDto[]
+  eligibleUserIds: UserId[] // user 控件允许选择的用户；其他控件返回 []
   valueFromUserFieldKey: string | null
 }
 interface CoursePreviewDto {
@@ -218,55 +218,101 @@ interface AreaOptionDto {
   color: string | null
   icon: string | null
   sortOrder: number
-  selectable: boolean
-  unavailableReason: string | null
-  requiredCourseIds: Id[]
 }
-interface RegistrationContextDto {
+interface RegistrationConfigDto {
+  visitTypeId: Id
   configurationVersion: string
-  visitType: VisitTypeDto
   applicationTemplateId: Id
   fields: FieldDto[]
   notice: { id: Id; version: string; title: string; content: string }
-  timeSlots: OptionDto[]
-  areas: AreaOptionDto[]
-  courses: CoursePreviewDto[]
+  areaRules: Array<{
+    areaId: Id
+    selectable: boolean
+    unavailableReason: string | null
+    requiredCourseIds: Id[]
+  }>
   participantRules: {
+    minimumCount: number
     companyRequired: boolean
     tradeRequired: boolean
     companyFromFieldKey: string | null
     phoneUnique: boolean
   }
-  participantMatches: Array<{
+}
+interface BaseDataDto {
+  generatedAt: InstantString
+  visitTypes: VisitTypeDto[]
+  registrationConfigs: RegistrationConfigDto[]
+  timeSlots: OptionDto[]
+  areas: AreaOptionDto[]
+  courses: CoursePreviewDto[]
+  userOptions: UserOptionDto[]
+  validationRules: {
+    phonePattern: string
+    platePattern: string
+    plateIgnoredCharacters: string
+    plateUppercase: boolean
+    participantNameMaxLength: number | null
+    companyMaxLength: number | null
+    tradeMaxLength: number | null
+  }
+}
+interface ProfileMatchesDto {
+  participants: Array<{
     name: string
     phone: string
     profile: { id: Id; company: string | null; trade: string | null } | null
   }>
-  vehicleMatches: Array<{
+  vehicles: Array<{
     plate: string
     profile: { id: Id; transportCompany: string | null; driverName: string | null } | null
   }>
 }
+interface BootstrapDto {
+  clientContext: ClientContextDto
+  baseDataVersion: string
+  baseData: BaseDataDto | null
+  totals: { applicationCount: number; pendingTrainingCount: number }
+  profileMatches: ProfileMatchesDto
+}
 ```
 
-- fields 投影已有动态模块和 metadata，不新建模板体系。控件对应 FieldValue；不支持的控件不能静默变成可提交文本框。只读姓名等字段由所选后台用户标识派生，提交时服务端重新解析。
-- 各类型至少一位独立人员，姓名＋手机号不得重复；phoneUnique 为真时还禁止重复手机号。施工单位继承本次 contractorCompany，不自动更新全局人员档案。
-- areas 按当前 visitTypeId 下发 requiredCourseIds，courses 是这些区域命中课程的去重摘要。前端对所选区域做课程 Id 并集即可展示课程、人数及考试规则，不再请求预览；不返回题目、答案或媒体文件。
-- 区域缺少本类型课程或有效审批负责人时 selectable=false 并说明原因。configurationVersion 覆盖类型、模板、须知、时段、规则、区域可用性、审批来源及区域课程映射。提交时重新校验版本和当前配置；前端预览不决定最终免训或任务创建。
-- profile 只按精确键及当前浏览器权限返回最少带入字段；没有记录或不可访问均为 null，不返回身份证、附件或他人资料。申请提交仍按姓名＋手机号和规范化车牌在服务端复用全局档案，不依赖客户端传档案 Id。
-- 资料带入由用户确认；本次修改写申请快照，不自动修改档案或历史。批量匹配不创建档案、申请或培训任务。
+- baseData 是当前浏览器允许使用的全部启用登记基础配置，不按单类型分页或返回截断列表。每个 visitType 都有对应完整 registrationConfig，areaRules、requiredCourseIds、eligibleUserIds 均能解析到共享集合，前端无需额外补查。
+- 只返回启用且配置完整、允许新建申请的类型；学习入口始终独立。未知颜色和图标使用默认值，Code 不作为固定类型分支。
+- fields 投影已有动态模块及 metadata。必填、长度、数值范围和选项一次返回；没有约束的项目为 null，未使用的候选集合为 []。不支持的控件不能静默变成文本框，不向客户端下发任意可执行表达式。
+- timeSlots 来自共用 PicklistSet。其他业务下拉选项放在 fields.options；同一业务区域、课程摘要和用户摘要只在共享集合保存一份，各类型引用其 Id。
+- areaRules 保存每个类型下各区域的可选状态、不可选原因及必修课程 Id；缺少有效课程或审批负责人时不可选。选择区域后，本地取课程并集即可预览，无课程预览接口。
+- userOptions 为所有启用类型字段候选的去重并集，只含用户 Id 和显示姓名；fields.eligibleUserIds 确定某字段可选范围。首次全量返回当前范围的可选人员，在前端搜索、筛选和列表滚动，不再调用 user-options。未成为候选的后台人员、账号、角色、手机号不返回。
+- validationRules 下发与服务端一致、可由前端执行的格式和长度规则；正则限 JavaScript RegExp 兼容的格式表达式。车牌按下发的忽略字符和大写规则规范化；人员姓名、手机号去首尾空格。服务端仍执行相同规则和最终业务校验。
+- participantRules.minimumCount 初始各类型为 1；同申请内姓名＋手机号不得重复，phoneUnique 为真时还禁止手机号重复。单位继承及车辆／运输单位必填均可由本地配置判断。
 
-初始物流的 logisticsReasons、cargoType、logisticsOrderNumber 等放入对应动态模板。审批人保存 logisticsContactUserId 等框架用户标识，自由姓名不能代替账号；车辆司机仅有可选 driverName，不携带手机号或 ParticipantId。
+首页、登记页或其他入口均可触发首次 bootstrap；同次应用运行只共享一份基础数据，不因页面或类型不同重复初始化。进入任何已载入类型的登记表单不再发配置请求。
 
-### 5.3 用户搜索
+pendingTrainingCount 在当前浏览器可访问的申请范围内按真实 TrainingRecord 去重，统计当前未完成任务；不将无继续培训需求的过期历史算作未完成，也不统计全站任务。该统计是 bootstrap 时刻的快照，后续优先使用业务操作响应更新，不为计数轮询 bootstrap。
 
-`GET /visit-types/{visitTypeId}/user-options?fieldKey=hostUserId&q=王&page=1&pageSize=20` 返回 `Page<{ id: UserId; displayName: string }>`。fieldKey 必须是该类型的 user 控件；q 去首尾空格，1–50 字符。仅返回可选且有资格的人员显示信息，不返回账号、角色、手机号或无条件的全员列表；提交时再次校验可用性。
+### 5.2 基础数据版本与本地复用
 
-界面输入短暂停顿后再搜索，同一关键词复用当前页面结果；不逐键触发请求。每个 IP 每分钟最多 60 次，超限返回 429。
+- 首次返回完整 baseData 及其 baseDataVersion，前端以这对值作为完整缓存，放入当前应用内存；可将纯基础数据缓存到 sessionStorage 支持同标签页重载，不保存 token、身份证、附件和档案匹配结果到这份缓存。
+- 同次应用运行中的页面切换、类型切换、用户搜索、区域切换和表单预校验直接读缓存，不先请求“版本检查”。完整网页重载或用户主动刷新时，可在同一次 bootstrap 中传 knownBaseDataVersion：相同版本返回 baseData=null，否则一次返回完整新数据，不先返回“有更新”再让前端补取。
+- baseData=null 仅表示版本相同、继续使用完整缓存，不表示没有类型或不需要配置。没有可用完整缓存时必须传 null／省略版本；缓存缺损时清除版本和数据，并重新 bootstrap 一次。
+- 指纹覆盖基础配置及当前范围的候选信息，不包含 generatedAt、今天、首页统计、档案匹配结果或临时文件地址，避免每次时间或查询变化都触发全量更新。基础数据版本不能替代申请和考试 etag。
+- 每类型 configurationVersion 只覆盖本类型的实际提交依赖；其他类型变化不要求重填当前草稿。提交仍携带本类型版本及 noticeVersion；如果本类型已变化，服务端在同一错误响应附完整新 baseData 和 baseDataVersion，前端直接替换，保留输入并对受影响须知重新确认，无后续配置补查。
+- 普通后台恢复、每次点击下一步或固定轮询不刷新基础数据。用户主动刷新、缺损缓存、会话失效恢复，或服务端明确配置／候选失效且没有附最新基础数据时才重新 bootstrap。
+- HTTP 响应继续 no-store；上述复用是应用对纯基础数据的显式缓存。浏览器归属改变或当前数据访问范围被撤销时清除对应缓存，不能复用其他范围的候选集合。
+
+### 5.3 档案匹配与本地资料带入
+
+人员车辆档案是动态业务数据，不是可以公开全量下载的基础字典。首次 bootstrap 可随草稿一起批量匹配；后续新增姓名手机号或车牌时，先复用已获得的匹配结果，确有新的带入需求再把多个精确键合并到一次 bootstrap，并携带已缓存的 knownBaseDataVersion，避免重复下载基础配置。用户只录入并提交新资料时不强制先匹配。
+
+profileMatches 只按请求键及当前浏览器权限返回最少字段；不存在或不可访问均为 null，不返回身份证、附件或他人资料。请求列表为空时相应匹配数组为空，不返回全库人员或车辆。
+
+用户确认后本地带入单位、工种或默认运输单位；本次修改写申请快照，不自动改档案或历史。匹配不创建档案、申请或培训任务，提交仍由服务端按规范化身份和车牌复用档案，不信任客户端的匹配 Id。
+
+初始物流业务字段通过对应动态模板下发。审批人保存 logisticsContactUserId 等框架标识，显示姓名可本地由候选映射带入，提交时由服务端重新解析。车辆司机仅有可选 driverName，不携带手机号或 ParticipantId。
 
 ### 5.4 附件
 
-`POST /participant-attachments` 接收 multipart 字段 file，允许 JPEG、PNG、PDF，单文件最大 10 MiB；检查实际文件类型和大小。返回 201：
+`POST /participant-attachments` 接收 multipart 字段 file，允许 JPEG、PNG、PDF，单文件最大 10 MiB；检查实际文件类型和大小。文件类型、已知大小和每人一份先在本地预校验，合格后才上传。返回 201：
 
 ```json
 {
@@ -666,9 +712,9 @@ interface CompletionDto {
 | 400 | INVALID_REQUEST / VALIDATION_FAILED | 未知字段、格式、日期、必填、车牌、选项集合等；定位字段并保留输入 |
 | 403 | ACCESS_CONTEXT_EXPIRED / CSRF_INVALID | 恢复 bootstrap 或重新查询本人任务；不能将失效凭证当作成功 |
 | 404 | RESOURCE_NOT_FOUND | 不存在或不在范围内统一处理，不附带别人的 workspace |
-| 409 | CONFIGURATION_CHANGED / NOTICE_CHANGED | 返回有权取得的最新 registrationContext，保留草稿并重新确认；已有申请使用原须知快照，不按新配置重签 |
+| 409 | CONFIGURATION_CHANGED / NOTICE_CHANGED | 直接附完整新 baseData 及 baseDataVersion，保留草稿、复用新配置并按需重新确认；已有申请仍用原须知快照 |
 | 409 | VISIT_TYPE_DISABLED / AREA_UNAVAILABLE / TRAINING_CONFIGURATION_MISSING | 配置不可用，不允许部分提交 |
-| 409 | APPROVER_UNAVAILABLE / ATTACHMENT_UNAVAILABLE | 重新选择人员或上传，保留其他资料 |
+| 409 | APPROVER_UNAVAILABLE / ATTACHMENT_UNAVAILABLE | 候选失效时有权可附最新基础数据，本地重新筛选；附件失效则重新上传，保留其他资料 |
 | 409 | CLIENT_REQUEST_CONFLICT | 不自动换 clientRequestId 再创建 |
 | 409 | APPLICATION_ENDED / APPLICATION_STATE_CONFLICT | 返回有权取得的当前 application workspace，按入口处理只读 |
 | 409 | TRAINING_RECORD_NOT_CURRENT / TRAINING_ALREADY_VALID / TRAINING_NOT_STARTED / VIDEOS_INCOMPLETE | 有权时附 currentTrainingRecordId 和 trainingWorkspace，不另读多次状态 |
@@ -679,42 +725,52 @@ interface CompletionDto {
 | 429 | RATE_LIMITED | 按 Retry-After 等待 |
 | 500 / 503 | INTERNAL_ERROR / SERVICE_UNAVAILABLE | 未确认成功；保留输入，恢复状态或重试原幂等操作 |
 
-workspace、trainingWorkspace、registrationContext 是 Problem Details 的可选扩展，只有通过当前授权检查且能取得一致状态时返回；没有扩展时才调用对应聚合读取接口恢复。不以 200 包装业务失败。后台另使用框架 401／403，以及 APPOINTMENT_DATE_MISMATCH、NOTICE_NOT_ACCEPTED、APPROVAL_INCOMPLETE、TRAINING_NOT_VALID、PARTICIPANTS_STILL_INSIDE、VEHICLES_STILL_INSIDE 等业务 code。
+workspace、trainingWorkspace、baseData、baseDataVersion 是 Problem Details 的可选扩展，只有通过当前授权检查且能取得一致状态时返回；没有相应扩展时才调用对应聚合读取接口恢复。不以 200 包装业务失败。后台另使用框架 401／403，以及 APPOINTMENT_DATE_MISMATCH、NOTICE_NOT_ACCEPTED、APPROVAL_INCOMPLETE、TRAINING_NOT_VALID、PARTICIPANTS_STILL_INSIDE、VEHICLES_STILL_INSIDE 等业务 code。
 
 TRAINING_RECORD_NOT_CURRENT 的 trainingWorkspace 可直接返回 currentTrainingRecordId 对应的新轮次，供前端切换；它是明确的错误恢复信息，不改变正常 workspace 对指定历史记录的展示规则。考试版本冲突返回的 exam 仍为请求指定的 examAttemptId，不替换成其他次考试。
 
 ## 12. 页面调用预算与接入方式
 
-以下计数指已有上下文、数据可用时的业务请求；新会话 bootstrap 最多增加一次。搜索、上传、主动刷新、分页及网络重试按实际需要另计，不承诺所有操作永远只有一次请求。
+以下计数指数据已获授权、没有冲突和网络重试的正常业务请求。基础数据只初始化一次；业务分页、文件上传和确需服务端状态时按实际需要请求，不为本地可判断的事项增加接口调用。
 
-| 场景 | 本版正常调用 | 响应可直接使用的数据 |
+| 场景 | 本版正常调用 | 直接使用的数据 |
 | --- | --- | --- |
-| 首次打开首页 | bootstrap 1 次，已含上下文 | 类型及统计 |
-| 从首页进入登记 | registration-context 1 次 | 表单、须知、区域和全部课程摘要 |
-| 直接打开登记链接 | 指定 visitTypeId 的 bootstrap 1 次 | 上下文及该类型登记页 |
-| 改区域／登记确认页 | 0 次 | 从配置映射取课程并集 |
+| 首次打开应用（首页或直达登记） | bootstrap 1 次 | 会话、全部类型、表单、须知、时段、区域、课程映射、候选人员及校验规则 |
+| 从首页进入或切换任一启用登记类型 | 0 次 | 同一份完整基础数据 |
+| 搜索审批候选、筛选下拉选项 | 0 次 | 已加载候选集合及字段候选 Id |
+| 改区域、预览课程、切换登记步骤及确认页 | 0 次 | 本地校验、映射、并集及计数 |
+| 精确匹配新输入人员／车辆以带入资料 | 如有需要，合并为 bootstrap 1 次 | 已有版本时 baseData=null，仅接收本次匹配及上下文等动态数据 |
 | 提交申请进入任务页 | applications 1 次 | application workspace，无后续详情／任务补查 |
-| 从记录进入详情再切换任务页或人员 | application workspace 1 次 | 全部申请资料及任务；切换时本地筛选 |
+| 从记录进入详情再切换任务页或人员 | application workspace 1 次 | 全部申请资料及任务；切换本地筛选 |
 | 确认已有申请须知 | notice-acceptance 1 次 | 可继续使用的 application workspace |
 | 查询本人待学 | learning-task-search 1 次 | 去重任务与本人 token |
-| 打开某一课程学习 | training workspace 1 次 | 视频、PDF、考试、历史及凭证可用状态 |
-| 开始／恢复首考或重考 | exam-attempts 1 次 | 含题目、已存答案、截止时间和 etag 的 workspace |
-| 从已载入 workspace 切换考试／结果／凭证页 | 0 次 | 使用同一份已返回数据，旧考试按固定 Id 展示 |
-| 保存最后一批答案并交卷，进入结果／凭证 | save(submit=true) 1 次 | 结果、错题、实际有效期及凭证，无额外结果查询 |
-| 暂停后恢复或刷新考试页 | training workspace 1 次 | 相同考试、服务端已存答案和原 DeadlineAt |
+| 打开某一课程学习 | training workspace 1 次 | 视频、PDF、考试、历史及凭证状态 |
+| 开始／恢复首考或重考 | exam-attempts 1 次 | 完整考试、服务端时间、已存答案及版本 |
+| 从已载入 workspace 切换考试／结果／凭证页 | 0 次 | 复用响应，历史按固定 examAttemptId 展示 |
+| 修改答案、下一题、答题卡及倒计时显示 | 本地立即处理；保存队列合并发送 | 已有试卷、答案和绝对截止时间，不请求逐题校验 |
+| 保存最后一批答案并交卷，进入结果／凭证 | save(submit=true) 1 次 | 结果、错题、有效期及凭证，无额外结果查询 |
+| 完整网页刷新并恢复考试 | training workspace 1 次；缺少上下文时另 bootstrap 1 次 | 同一考试、已存答案、原 DeadlineAt；基础缓存可通过版本复用 |
 | 取消申请 | cancel 1 次 | 更新后的 application workspace |
 
-过程答案仍按短暂合并后的变更异步保存；播放器首次实际播放与完成仍在各自时点上报，不能用减少请求替代进度和截止时间要求。
+### 12.1 本地派生状态和按需刷新
 
-前端使用一个 API 访问层和按 applicationId／trainingRecordId／examAttemptId 定位的页面缓存。接收操作返回的 workspace 后直接替换对应状态；姓名查询时切换到个人范围，清除其他人员页面数据。跨标签页或后台审批可能改变状态，回到前台时对当前正在使用的聚合资源重新读取一次，不并行读取其各个子资源。
+- 使用 API 访问层及按 applicationId／trainingRecordId／examAttemptId 定位的页面缓存。业务操作响应更新同一真实任务在已载入申请中的展示；不因切换到另一个页面立即重复读取刚收到的数据。
+- 根据 X-Server-Time 和本地经过时间推算业务当前时刻，按 Asia/Shanghai 更新“今天”、预约日期提示、剩余秒数和有效期展示。倒计时每秒、跨过午夜或有效期截止不调用时间／校验接口，不能只缓存服务端某一时刻的 isValid 布尔值。
+- 本地展示有效性只基于已返回的真实通过及 CompletedAt、ValidUntil；未拿到本人记录时不推断免训。申请任务只在本申请关联内选当前轮次，不将其他申请的更高轮次替换过来。
+- 普通页面返回、人员切换及恢复前台优先复用缓存并重算派生状态。只在用户主动刷新、凭证失效、版本冲突且响应未附现状、考试到期需要结算、或待使用媒体地址到期时，调用相应聚合接口；同一资源并发需求合并成一次请求。
+- 恢复前台时如发现考试已到期，使用 save(submit=true) 请求一次服务端结算，不先读一次再交卷。未过期且缓存和凭证可用时沿用同一试卷、截止时间和答案，并继续原保存队列；未确认成功的交卷或未知的远端状态通过一次 training workspace 恢复。
+- 后台审批可能在缓存期间变化。页面标注当前已读取状态的时间并提供主动刷新，不为显示审批状态持续轮询；发起真实业务动作时仍由服务端按当前状态校验，冲突响应直接刷新页面数据。
+- token 到期或访问范围切换时只恢复对应凭证／清除对应个人缓存，不重新下载未变的全部基础数据。媒体地址刷新不重建培训或考试。
 
-未交卷时移除本地判对错；真实接入移除演示计时和本地评分，不上传 visitsafe.web.v3 的演示成绩或本地 Id。现有登记顺序保持，物流独立人员及统一 vehicles 的 API DTO 适配按 React／后端 SPEC 实现。
+过程答案仍按第 8 节合并后异步保存；播放器首次实际播放与完成在各自时点上报。本地预判断减少读请求和无效写请求，不将未保存答案或未提交的视频进度标记为服务端成功。
+
+未交卷时不本地判对错；API 模式移除演示计时及本地评分，不上传 visitsafe.web.v3 的演示成绩或本地 Id。现有登记步骤保持，物流独立人员及统一 vehicles 的适配按 React／后端 SPEC 实现。
 
 ## 13. 契约验收与交付边界
 
 本轮只进行文档 review，以下为后续接口和前端接入验收要求，不表示已有服务或测试通过。
 
-1. 首页一次 bootstrap 获得会话、类型和统计；直达登记时可同时获得该类型上下文。改区域和确认页无课程预览请求；配置变化仍在提交时拒绝旧内容并保留草稿。
+1. 首次一次 bootstrap 获得全部启用基础配置和候选摘要；随后进入或切换登记类型、搜索候选、改区域、下一步及确认页均不请求配置或校验。前端能完成第 1.3 节列出的本地预判断。
 2. 创建申请返回可直接展示的任务页；重复提交只创建一张申请和正确的审批／课程关联，既有任务不复制。动态类型、字段及用户选项遵循模板，不增加固定类型分支。
 3. 申请 workspace 同时支持详情、全部／个人任务；各内部资源 etag 已返回，不额外为取消、须知或考试取得版本。
 4. 人员车辆复用独立档案、本次修改只写快照，申请人员与车辆无 SortOrder；物流两车三人按三人分别分配课程，车辆不生成人员或课程。
@@ -731,6 +787,11 @@ TRAINING_RECORD_NOT_CURRENT 的 trainingWorkspace 可直接返回 currentTrainin
 15. 聚合读取和错误扩展都遵循范围裁剪；个人凭证不含整单资料和他人数据。浏览器清除 Cookie 不删除服务端业务，个人 token 失效不重置学习。
 16. 附件超限、格式错误、过期或越权拒绝；未绑定附件自动回收，已绑定资料按历史保留，取消编辑不需要 DELETE。
 17. 后台一次 workspace 提供审批、人员及版本，操作响应足够更新页面；放行仍检查须知、审批、预约日及本人有效课程，重复操作不改首次审计，未出厂的已进厂车辆阻止整单完成。
+18. 基础数据集合及所有引用完整，不截断可选用户或按类型补查；本地只在对应 eligibleUserIds 内搜索，不显示后台全员资料。
+19. 已有完整缓存且版本相同时 baseData=null、缓存继续可用；版本不同时同次返回完整新数据。缓存缺损不能只保留版本，日期或档案查询变化不导致基础数据指纹变化。
+20. 某类型配置变化后，提交错误直接携带最新基础数据，保留草稿并只对受影响须知重新确认；无关类型变化不使本类型请求失效。篡改客户端必填、候选、课程集合、免训或本地时钟不能绕过服务端校验。
+21. 回到前台、切换页面、每秒倒计时、午夜及有效期展示变化不自动产生重复查询；必要的结算、媒体刷新、版本／权限恢复按第 12 节执行。
+22. 档案带入键批量合并，空键不返回档案列表；相同基础版本不重复传输字典。档案匹配可跳过，不影响正常提交时复用真实档案。
 
 实现时使用独立 Request／Response DTO、统一 JSON 字符串枚举及 Problem Details，为每个操作声明访问范围、operationId 和成功／错误响应并导出 OpenAPI。权限、事务、评分和共享轮次处理由业务服务复用，不直接序列化 EF 实体或完整课程快照。
 
