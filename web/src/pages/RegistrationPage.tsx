@@ -44,6 +44,8 @@ export function RegistrationPage() {
   const entry = ENTRIES[type]
   const subjects = trainingSubjects(draft)
   const courseIds = draft.areaIds.length ? matchCourses(type, draft.areaIds) : []
+  const existingPerson = editor && type !== 'logistics' ? store.findParticipant(editor.name, editor.phone) : undefined
+  const existingVehicle = editor && type === 'logistics' ? store.findVehicle(editor.plate) : undefined
   function save(next: Draft) {
     setDraft(next)
     try { store.saveDraft(next) } catch (error) { notifyError(error) }
@@ -112,6 +114,8 @@ export function RegistrationPage() {
     <Popup visible={!!editor} onMaskClick={() => setEditor(null)} bodyStyle={{ borderRadius: '20px 20px 0 0', maxHeight: '90dvh', overflowY: 'auto' }}><div className="editor-sheet"><div className="sheet-heading"><h2>{type === 'logistics' ? '车辆及司机资料' : '人员资料'}</h2><button type="button" className="icon-button" aria-label="取消编辑" onClick={() => setEditor(null)}><Icon name="close" /></button></div>{editor && <>
       {type === 'logistics' && <div className="field"><span>车牌号<em>*</em></span><button type="button" className="select-field" onClick={() => setPlateEditor({ id: editor.id, value: editor.plate, roster: true })}>{editor.plate || '填写车牌'}<Icon name="chevron" size={18} /></button></div>}
       {(['name', 'phone', ...(type === 'contractor' ? ['trade'] : ['company'])] as const).map(field => { const label = field === 'name' ? (type === 'logistics' ? '司机姓名' : '姓名') : field === 'phone' ? '手机号码' : field === 'trade' ? '工种' : type === 'logistics' ? '运输单位' : '所属单位'; return <label className="field" key={field}><span>{label}<em>*</em></span><Input aria-label={label} value={editor[field as keyof Editor]} type={field === 'phone' ? 'tel' : 'text'} maxLength={field === 'phone' ? 11 : 60} placeholder={`请输入${label}`} onChange={value => setEditor({ ...editor, [field]: value })} /></label> })}
+      {existingPerson && <Button block fill="outline" className="mb-3" onClick={() => setEditor({ ...editor, company: type === 'contractor' ? draft.contractorCompany : existingPerson.company, trade: existingPerson.trade || '' })}>带入已有人员资料</Button>}
+      {existingVehicle && <Button block fill="outline" className="mb-3" onClick={() => setEditor({ ...editor, company: existingVehicle.company })}>带入车辆默认运输单位</Button>}
       {type === 'contractor' && <p className="muted small">所属单位：{draft.contractorCompany || '请先填写施工单位'}</p>}<FieldError message={editorError} /><Button block color="primary" onClick={saveEditor}>保存{type === 'logistics' ? '车辆' : '人员'}</Button>
     </>}</div></Popup>
     {plateEditor && <PlatePicker value={plateEditor.value} title={plateEditor.roster ? '填写物流车牌' : '随行车辆车牌'} onClose={() => setPlateEditor(null)} onConfirm={plate => { if (!validPlate(plate)) throw new Error('请填写有效车牌'); if (plateEditor.roster && editor) setEditor({ ...editor, plate }); else { if (draft.accompanyingVehicles.some(vehicle => vehicle.id !== plateEditor.id && vehicle.plate === plate)) throw new Error('随行车牌重复'); save({ ...draft, accompanyingVehicles: [...draft.accompanyingVehicles.filter(vehicle => vehicle.id !== plateEditor.id), { id: plateEditor.id, plate }] }) }; setPlateEditor(null) }} />}

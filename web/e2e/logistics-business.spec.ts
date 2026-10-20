@@ -40,6 +40,6 @@ test('物流业务信息支持多选、单选，并保留在草稿和提交记�
   await page.getByRole('button', { name: '提交并开始培训' }).click()
   await expect(page.getByText('人员培训进度')).toBeVisible()
   await page.reload()
-  const visit = await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v2')!).visits[0])
+  const visit = await page.evaluate(() => JSON.parse(localStorage.getItem('visitsafe.web.v3')!).visits[0])
   expect(visit).toMatchObject({ logisticsReasons: ['送货', '提货'], logisticsContact: '刘工', cargoType: '设备', logisticsOrderNumber: 'WL-20261013-001' })
 })

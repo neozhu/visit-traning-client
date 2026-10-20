@@ -1,9 +1,9 @@
 import { CARGO_TYPES, COURSES, COURSE_RULES, ENTRIES, LOGISTICS_REASONS, TIME_SLOTS, VISIT_REASONS } from './catalog'
-import type { AppState, Draft, EntryType, ExamResult, Person, StoragePort, TrainingTask, Visit } from './types'
-import { isAppState } from './validateState'
+import type { AppState, Draft, EntryType, ExamResult, Person, StoragePort, TrainingTask, Visit, Course, VehicleSnapshot } from './types'
+import { isAppState, isCourse } from './validateState'
 
 export { AREAS, COURSES, ENTRIES, TIME_SLOTS, VISIT_REASONS } from './catalog'
-export const STORAGE_KEY = 'visitsafe.web.v2'
+export const STORAGE_KEY = 'visitsafe.web.v3'
 export const makeId = () => typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('')
 export const today = (time = Date.now()) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(time)
 export const normalizePlate = (plate: string) => plate.replace(/[\s·.-]/g, '').toUpperCase()
@@ -12,9 +12,13 @@ export const maskPhone = (phone: string) => phone.replace(/^(\d{3})\d{4}(\d{4})$
 export const formatMoment = (time: number) => new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(time)
 export const formatValidity = (time: number) => new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(time)
 
-function currentTrainingTasks(tasks: TrainingTask[], visitId?: string) {
-  return tasks.filter(task => (!visitId || task.visitId === visitId) && !tasks.some(other => other.visitId === task.visitId && other.subjectId === task.subjectId && other.courseId === task.courseId && other.roundNumber > task.roundNumber))
+function currentTrainingTasks(data: AppState, visitId?: string) {
+  const visit = visitId ? data.visits.find(item => item.id === visitId) : undefined
+  const tasks = visitId ? data.tasks.filter(task => visit?.taskIds.includes(task.id)) : data.tasks
+  return tasks.filter(task => !tasks.some(other => other.subjectId === task.subjectId && other.courseId === task.courseId && other.roundNumber > task.roundNumber))
 }
+export const correctAnswer = (question: Course['questions'][number], answers: number[] = []) => answers.length === question.correctIndexes.length && question.correctIndexes.every(index => answers.includes(index))
+export const noticeFor = (type: EntryType) => ({ title: `${ENTRIES[type].label}须知`, content: `1. 请如实填写到访人员及车辆信息。\n2. ${ENTRIES[type].notice}\n3. 完成申请区域对应培训并通过考试。\n4. 携带访客凭证，遵守现场安排。` })
 
 export function matchCourses(type: EntryType, areaIds: string[]) {
   if (!areaIds.length) throw new Error('请至少选择一个访问区域')
@@ -83,7 +87,7 @@ export function trainingSubjects(draft: Draft): Person[] {
   }
   return subjects
 }
-const emptyState = (): AppState => ({ version: 2, drafts: {}, visits: [], tasks: [] })
+const emptyState = (): AppState => ({ version: 3, drafts: {}, visits: [], tasks: [], participants: [], vehicleProfiles: [] })
 
 export function createDemoStore(storage: StoragePort, clock: () => number = Date.now) {
   let state = emptyState()
@@ -111,7 +115,7 @@ export function createDemoStore(storage: StoragePort, clock: () => number = Date
   }
   function getTask(data: AppState, id: string): TrainingTask {
     const task = data.tasks.find(item => item.id === id)
-    if (!task) throw new Error('培训任务不存在，请返回我的记录')
+    if (!task) throw new Error('培训任务不存在，请返回学习入口')
     return task
   }
   function course(id: string) {
@@ -121,162 +125,218 @@ export function createDemoStore(storage: StoragePort, clock: () => number = Date
   }
   function isTrainingValid(task: TrainingTask) {
     const now = clock()
-    return task.completedAt !== undefined && task.validUntil !== undefined && task.completedAt <= now && now < task.validUntil
+    return !!task.result?.passed && task.completedAt !== undefined && task.validUntil !== undefined && task.completedAt <= now && now < task.validUntil
   }
-  function canReuseFrom(data: AppState, sourceVisitId: string, targetVisitId: string) {
-    const pending = [sourceVisitId]
-    const seen = new Set<string>()
-    while (pending.length) {
-      const id = pending.pop()!
-      if (id === targetVisitId) return false
-      if (seen.has(id)) continue
-      seen.add(id)
-      for (const task of data.tasks) if (task.visitId === id && task.reusedFromTaskId) pending.push(getTask(data, task.reusedFromTaskId).visitId)
-    }
-    return true
+  function participant(data: AppState, person: Person) {
+    const clean = { ...person, name: person.name.trim(), phone: person.phone.trim(), company: person.company.trim() }
+    if (!clean.name || !/^1[3-9]\d{9}$/.test(clean.phone)) throw new Error('请填写有效的姓名和手机号')
+    const existing = data.participants.find(item => item.name === clean.name && item.phone === clean.phone)
+    if (existing) return { ...clean, id: existing.id }
+    if (!clean.id || data.participants.some(item => item.id === clean.id)) clean.id = makeId()
+    data.participants.push(structuredClone(clean))
+    return clean
   }
-  function newTrainingTask(data: AppState, visit: Visit, person: Person, courseId: string, roundNumber = 1): TrainingTask {
-    const appointmentStart = Date.parse(`${visit.appointmentDate}T00:00:00+08:00`)
-    const source = data.tasks.filter(task => {
-      if (task.courseId !== courseId || task.reusedFromTaskId || !task.result?.passed || !isTrainingValid(task) || task.validUntil! <= appointmentStart || !canReuseFrom(data, task.visitId, visit.id)) return false
-      const previousPerson = data.visits.find(item => item.id === task.visitId)?.subjects.find(item => item.id === task.subjectId)
-      return previousPerson?.name.trim() === person.name.trim() && previousPerson.phone.trim() === person.phone.trim()
-    }).sort((a, b) => b.completedAt! - a.completedAt! || a.id.localeCompare(b.id))[0]
-    return { id: makeId(), visitId: visit.id, subjectId: person.id, courseId, roundNumber, completedLessons: [], ...(source ? { reusedFromTaskId: source.id, completedAt: source.completedAt, validUntil: source.validUntil } : {}) }
+  function vehicleSnapshots(data: AppState, draft: Draft): VehicleSnapshot[] {
+    const values = draft.type === 'logistics' ? draft.vehicles.map(item => ({ plate: item.plate, company: item.company.trim(), driverName: item.driver.trim() })) : draft.accompanyingVehicles.map(item => ({ plate: item.plate, company: '' }))
+    return values.map(value => {
+      const plate = normalizePlate(value.plate)
+      let profile = data.vehicleProfiles.find(item => item.plate === plate)
+      if (!profile) {
+        profile = { ...value, plate, id: makeId() }
+        data.vehicleProfiles.push(profile)
+      }
+      return { ...value, plate, vehicleId: profile.id }
+    })
   }
-  function refreshTraining(data: AppState) {
-    for (const task of currentTrainingTasks(data.tasks)) {
-      if (task.validUntil === undefined || clock() < task.validUntil) continue
-      const visit = data.visits.find(item => item.id === task.visitId)!
-      const person = visit.subjects.find(item => item.id === task.subjectId)!
-      data.tasks.push(newTrainingTask(data, visit, person, task.courseId, task.roundNumber + 1))
-    }
-  }
-  function editableTask(data: AppState, id: string) {
-    const task = getTask(data, id)
-    if (!currentTrainingTasks(data.tasks).some(item => item.id === id)) throw new Error('请返回培训任务，继续当前轮次的学习')
+  function allocate(data: AppState, subjectId: string, courseId: string, appointmentDate?: string, minimumRound = 1, snapshot?: Course) {
+    const candidates = data.tasks.filter(task => task.subjectId === subjectId && task.courseId === courseId)
+    const appointmentStart = appointmentDate ? Date.parse(`${appointmentDate}T00:00:00+08:00`) : -Infinity
+    const passed = candidates.filter(task => task.roundNumber >= minimumRound && isTrainingValid(task) && task.validUntil! > appointmentStart).sort((a, b) => b.completedAt! - a.completedAt! || a.id.localeCompare(b.id))[0]
+    if (passed) return passed
+    const pending = candidates.filter(task => task.roundNumber >= minimumRound && task.completedAt === undefined).sort((a, b) => b.roundNumber - a.roundNumber)[0]
+    if (pending) return pending
+    const content = snapshot ?? course(courseId)
+    if (!isCourse(content)) throw new Error('课程内容或考试规则配置无效')
+    const task: TrainingTask = { id: makeId(), subjectId, courseId, roundNumber: Math.max(0, ...candidates.map(item => item.roundNumber)) + 1, courseSnapshot: structuredClone(content), completedLessons: [], examHistory: [] }
+    data.tasks.push(task)
     return task
   }
+  function refreshTraining(data: AppState) {
+    for (const visit of data.visits) {
+      for (const task of currentTrainingTasks(data, visit.id)) {
+        if (task.validUntil === undefined || clock() < task.validUntil) continue
+        const next = allocate(data, task.subjectId, task.courseId, visit.appointmentDate, task.roundNumber + 1, task.courseSnapshot)
+        if (!visit.taskIds.includes(next.id)) visit.taskIds.push(next.id)
+        if (isTrainingValid(next) && !visit.exemptTaskIds.includes(next.id)) visit.exemptTaskIds.push(next.id)
+      }
+    }
+  }
   function needsLearning(task: TrainingTask) {
-    if (task.completedAt !== undefined) throw new Error(isTrainingValid(task) ? '培训已通过，无需再次学习或考试' : '培训已过期，请返回培训任务重新学习')
+    if (task.completedAt !== undefined) throw new Error(isTrainingValid(task) ? '培训已通过，无需再次学习或考试' : '培训已过期，请返回培训任务继续当前轮次')
   }
   function ready(task: TrainingTask) {
-    if (!course(task.courseId).lessons.every(lesson => task.completedLessons.includes(lesson.id))) throw new Error('请先完成全部视频学习')
+    if (!task.courseSnapshot.lessons.every(lesson => task.completedLessons.includes(lesson.id))) throw new Error('请先完成全部视频学习')
+  }
+  function exam(task: TrainingTask) {
+    const startedAt = clock()
+    return { id: makeId(), attemptNumber: task.examHistory.length + 1, startedAt, deadlineAt: startedAt + task.courseSnapshot.examDurationMinutes * 60000, answers: {} }
+  }
+  function register(draft: Draft, source: Visit['source']) {
+    return update(next => {
+      const existing = next.visits.find(visit => visit.id === draft.id)
+      if (existing) return existing
+      if (!ENTRIES[draft.type]) throw new Error('登记类型不存在')
+      if (source === 'external' && !draft.noticeAccepted) throw new Error('请先阅读并同意访客须知')
+      const error = Object.values(registrationErrors(draft, today(clock())))[0]
+      if (error) throw new Error(error)
+      const courseIds = matchCourses(draft.type, draft.areaIds)
+      const clean = structuredClone(draft)
+      clean.noticeAccepted = source === 'external'
+      clean.vehicles = clean.vehicles.map(vehicle => ({ ...vehicle, plate: normalizePlate(vehicle.plate) }))
+      clean.accompanyingVehicles = clean.accompanyingVehicles.map(vehicle => ({ ...vehicle, plate: normalizePlate(vehicle.plate) }))
+      const subjects = trainingSubjects(clean).map(person => participant(next, person))
+      const visit: Visit = { ...clean, areaIds: [...new Set(clean.areaIds)], subjects, courseIds, createdAt: clock(), taskIds: [], exemptTaskIds: [], vehicleSnapshots: vehicleSnapshots(next, clean), source, noticeSnapshot: noticeFor(clean.type), ...(source === 'external' ? { noticeAcceptedAt: clock() } : {}) }
+      for (const subject of subjects) for (const courseId of courseIds) {
+        const task = allocate(next, subject.id, courseId, visit.appointmentDate)
+        visit.taskIds.push(task.id)
+        if (isTrainingValid(task)) visit.exemptTaskIds.push(task.id)
+      }
+      next.visits.unshift(visit)
+      delete next.drafts[draft.type]
+      return visit
+    })
   }
   const store = {
     snapshot: () => state,
     recovered: () => recovered,
     refresh() {
       const next = readState()
-      const taskCount = next.tasks.length
+      const before = JSON.stringify(next)
       refreshTraining(next)
-      if (next.tasks.length !== taskCount) storage.write(STORAGE_KEY, next)
+      if (JSON.stringify(next) !== before) storage.write(STORAGE_KEY, next)
       publish(next)
     },
     subscribe(listener: () => void) { subscribers.add(listener); return () => { subscribers.delete(listener) } },
     course,
     isTrainingValid,
-    currentTasks(visitId?: string) { return currentTrainingTasks(state.tasks, visitId) },
+    currentTasks(visitId?: string) { return currentTrainingTasks(state, visitId) },
     task(id: string) { return getTask(state, id) },
+    taskHome(id: string, visitId?: string | null) {
+      const visit = state.visits.find(item => item.id === visitId && item.taskIds.includes(id))
+      return visit ? `/tasks/${visit.id}?person=${getTask(state, id).subjectId}` : '/training'
+    },
+    taskVisits(id: string) { return state.visits.filter(visit => visit.taskIds.includes(id)) },
+    findParticipant(name: string, phone: string) { return structuredClone(state.participants.find(item => item.name === name.trim() && item.phone === phone.trim())) },
+    findVehicle(plate: string) { return structuredClone(state.vehicleProfiles.find(item => item.plate === normalizePlate(plate))) },
     saveDraft(draft: Draft) { return update(next => { next.drafts[draft.type] = structuredClone(draft); return draft }) },
-    register(draft: Draft) {
+    register(draft: Draft) { return register(draft, 'external') },
+    registerInternal(draft: Draft) { return register(draft, 'internal') },
+    acceptNotice(visitId: string) {
       return update(next => {
-        const existing = next.visits.find(visit => visit.id === draft.id)
-        if (existing) return existing
-        if (!draft.noticeAccepted) throw new Error('请先阅读并同意访客须知')
-        if (!ENTRIES[draft.type]) throw new Error('登记类型不存在')
-        const error = Object.values(registrationErrors(draft, today(clock())))[0]
-        if (error) throw new Error(error)
-        const courseIds = matchCourses(draft.type, draft.areaIds)
-        const clean = structuredClone(draft)
-        clean.vehicles = clean.vehicles.map(vehicle => ({ ...vehicle, plate: normalizePlate(vehicle.plate) }))
-        clean.accompanyingVehicles = clean.accompanyingVehicles.map(vehicle => ({ ...vehicle, plate: normalizePlate(vehicle.plate) }))
-        const subjects = trainingSubjects(clean)
-        const visit = { ...clean, areaIds: [...new Set(clean.areaIds)], subjects, courseIds, createdAt: clock() }
-        next.visits.unshift(visit)
-        for (const subject of subjects) for (const courseId of courseIds) next.tasks.push(newTrainingTask(next, visit, subject, courseId))
-        delete next.drafts[draft.type]
+        const visit = next.visits.find(item => item.id === visitId)
+        if (!visit) throw new Error('申请不存在')
+        if (visit.noticeAcceptedAt === undefined) visit.noticeAcceptedAt = clock()
+        visit.noticeAccepted = true
         return visit
+      })
+    },
+    assignTraining(person: Person, courseIds: string[]) {
+      return update(next => {
+        if (!courseIds.length) throw new Error('请至少选择一门课程')
+        const profile = participant(next, person)
+        return [...new Set(courseIds)].map(id => {
+          if (!isCourse(course(id))) throw new Error('课程内容或考试规则配置无效')
+          return allocate(next, profile.id, id)
+        })
       })
     },
     pendingTasks(name: string, phone: string) {
       if (!name.trim()) throw new Error('请输入登记时的姓名')
       if (!/^1[3-9]\d{9}$/.test(phone.trim())) throw new Error('请输入有效的11位手机号')
       store.refresh()
-      return store.currentTasks().filter(task => !isTrainingValid(task) && state.visits.some(visit => visit.id === task.visitId && visit.subjects.some(person => person.id === task.subjectId && person.name.trim() === name.trim() && person.phone.trim() === phone.trim())))
+      const person = store.findParticipant(name, phone)
+      return store.currentTasks().filter(task => task.subjectId === person?.id && task.completedAt === undefined)
+    },
+    startLearning(taskId: string) {
+      return update(next => {
+        const task = getTask(next, taskId)
+        needsLearning(task)
+        if (task.startedAt === undefined) task.startedAt = clock()
+        return task
+      })
     },
     completeLesson(taskId: string, lessonId: string) {
       return update(next => {
-        const task = editableTask(next, taskId)
+        const task = getTask(next, taskId)
         needsLearning(task)
-        if (!course(task.courseId).lessons.some(lesson => lesson.id === lessonId)) throw new Error('学习视频不存在')
+        if (!task.courseSnapshot.lessons.some(lesson => lesson.id === lessonId)) throw new Error('学习视频不存在')
+        if (task.startedAt === undefined) task.startedAt = clock()
         if (!task.completedLessons.includes(lessonId)) task.completedLessons.push(lessonId)
         return task
       })
     },
     beginExam(taskId: string) {
       return update(next => {
-        const task = editableTask(next, taskId)
+        const task = getTask(next, taskId)
         needsLearning(task)
         ready(task)
-        if (task.result?.passed) throw new Error('培训已通过，无需再次考试')
-        if (!task.attempt) task.attempt = { startedAt: clock(), deadlineAt: clock() + 15 * 60 * 1000, answers: {} }
+        if (!task.attempt && task.result) throw new Error('请从考试结果开始重考')
+        if (!task.attempt) task.attempt = exam(task)
         return task
       })
     },
-    answer(taskId: string, questionId: string, answer: number) {
+    answer(taskId: string, questionId: string, answer: number | number[]) {
       return update(next => {
-        const task = editableTask(next, taskId)
+        const task = getTask(next, taskId)
         needsLearning(task)
         if (!task.attempt) throw new Error('请先开始考试')
         if (clock() >= task.attempt.deadlineAt) throw new Error('考试时间已结束')
-        const question = course(task.courseId).questions.find(item => item.id === questionId)
-        if (!question || !Number.isInteger(answer) || answer < 0 || answer >= question.options.length) throw new Error('答题选项无效')
-        task.attempt.answers[questionId] = answer
+        const question = task.courseSnapshot.questions.find(item => item.id === questionId)
+        const answers = [...new Set(Array.isArray(answer) ? answer : [answer])].sort((a, b) => a - b)
+        if (!question || (question.kind === 'single' && answers.length > 1) || !answers.every(index => Number.isInteger(index) && index >= 0 && index < question.options.length)) throw new Error('答题选项无效')
+        if (answers.length) task.attempt.answers[questionId] = answers
+        else delete task.attempt.answers[questionId]
         return task
       })
     },
     submitExam(taskId: string): ExamResult {
       return update(next => {
-        const task = editableTask(next, taskId)
+        const task = getTask(next, taskId)
         if (!task.attempt) {
           if (task.result) return task.result
           throw new Error('请先开始考试')
         }
-        const questions = course(task.courseId).questions
+        const questions = task.courseSnapshot.questions
         const timedOut = clock() >= task.attempt.deadlineAt
-        if (!timedOut && questions.some(question => task.attempt!.answers[question.id] === undefined)) throw new Error('还有题目未作答，请完成后交卷')
-        const wrongIds = questions.filter(question => task.attempt!.answers[question.id] !== question.correct).map(question => question.id)
+        if (!timedOut && questions.some(question => !task.attempt!.answers[question.id]?.length)) throw new Error('还有题目未作答，请完成后交卷')
+        const wrongIds = questions.filter(question => !correctAnswer(question, task.attempt!.answers[question.id])).map(question => question.id)
         const score = (questions.length - wrongIds.length) * 20
         const submittedAt = clock()
-        task.result = { score, passed: score >= 80, timedOut, submittedAt, answers: { ...task.attempt.answers }, wrongIds }
+        task.result = { score, passed: score >= task.courseSnapshot.passScore, timedOut, submittedAt, answers: structuredClone(task.attempt.answers), wrongIds }
         if (task.result.passed) {
           const validityDays = course(task.courseId).trainingValidityDays
           if (!Number.isInteger(validityDays) || validityDays <= 0) throw new Error('课程培训有效期配置无效')
           task.completedAt = submittedAt
           task.validUntil = submittedAt + validityDays * 86400000
         }
+        task.examHistory.push({ ...structuredClone(task.attempt), result: structuredClone(task.result) })
         delete task.attempt
         return task.result
       })
     },
     retake(taskId: string) {
       return update(next => {
-        const task = editableTask(next, taskId)
+        const task = getTask(next, taskId)
         needsLearning(task)
         ready(task)
-        if (task.result?.passed) throw new Error('培训已通过，无需重考')
         if (!task.result || task.attempt) throw new Error('请先完成当前考试')
-        task.attempt = { startedAt: clock(), deadlineAt: clock() + 15 * 60 * 1000, answers: {} }
+        task.attempt = exam(task)
         return task
       })
     },
     deleteVisit(id: string) {
       return update(next => {
-        const removedIds = new Set(next.tasks.filter(task => task.visitId === id).map(task => task.id))
-        if (next.tasks.some(task => task.visitId !== id && task.reusedFromTaskId && removedIds.has(task.reusedFromTaskId))) throw new Error('培训结果已被其他申请复用，请先删除关联申请')
         next.visits = next.visits.filter(visit => visit.id !== id)
-        next.tasks = next.tasks.filter(task => task.visitId !== id)
         return true
       })
     },

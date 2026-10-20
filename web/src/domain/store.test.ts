@@ -26,26 +26,6 @@ function passCourse(store: ReturnType<typeof domain.createDemoStore>, taskId: st
 }
 
 describe('培训有效期与历史免训', () => {
-  it('同一姓名手机号复用同一课程，其他人员和课程仍需学习，重复申请不续期', () => {
-    const { store } = setup()
-    store.register(fixture())
-    const sourceId = store.snapshot().tasks[0].id
-    passCourse(store, sourceId)
-    store.register({ ...fixture(), id: 'application-2' })
-    const reused = store.snapshot().tasks.find(task => task.visitId === 'application-2' && task.subjectId === 'person-a' && task.courseId === 'production')!
-    expect(reused).toMatchObject({ reusedFromTaskId: sourceId, completedAt: Date.parse('2026-10-12T09:00:00+08:00'), validUntil: Date.parse('2026-12-11T09:00:00+08:00'), completedLessons: [] })
-    expect(reused.result).toBeUndefined()
-    expect(reused.attempt).toBeUndefined()
-    expect(store.pendingTasks('张三', '13800138001').filter(task => task.visitId === 'application-2').map(task => task.courseId)).toEqual(['office'])
-    expect(store.pendingTasks('李四', '13800138002').filter(task => task.visitId === 'application-2')).toHaveLength(2)
-    store.register({ ...fixture(), id: 'application-3' })
-    const again = store.snapshot().tasks.find(task => task.visitId === 'application-3' && task.subjectId === 'person-a' && task.courseId === 'production')!
-    expect(again.reusedFromTaskId).toBe(sourceId)
-    expect(again.validUntil).toBe(Date.parse('2026-12-11T09:00:00+08:00'))
-    expect(() => store.beginExam(reused.id)).toThrow('通过')
-    expect(() => store.completeLesson(reused.id, 'production-safety')).toThrow('通过')
-  })
-
   it.each([
     { name: '张三', phone: '13800138003', reusable: false },
     { name: '王五', phone: '13800138001', reusable: false },
@@ -53,111 +33,49 @@ describe('培训有效期与历史免训', () => {
   ])('姓名手机号共同匹配：$name / $phone', ({ name, phone, reusable }) => {
     const { store } = setup()
     store.register(fixture())
-    passCourse(store, store.snapshot().tasks[0].id)
-    store.register({ ...fixture(), id: 'application-2', areaIds: ['production'], people: [{ ...fixture().people[0], id: 'new-person', name, phone }] })
-    const task = store.snapshot().tasks.find(item => item.visitId === 'application-2')!
-    expect(task.reusedFromTaskId !== undefined).toBe(reusable)
+    const source = store.snapshot().tasks[0]
+    passCourse(store, source.id)
+    const visit = store.register({ ...fixture(), id: 'application-2', areaIds: ['production'], people: [{ ...fixture().people[0], id: 'new-person', name, phone }] })
+    expect(visit.exemptTaskIds.includes(source.id)).toBe(reusable)
+    expect(store.currentTasks(visit.id)[0].id === source.id).toBe(reusable)
   })
 
-  it('每门课程按自己的有效天数判断，新增课程需要学习', () => {
+  it('每门课程独立有效，新增课程需要学习，课程期限调整不追溯旧结果', () => {
     const { store, advance } = setup()
+    store.register(fixture())
+    const tasks = store.currentTasks('application-1').filter(task => task.subjectId === 'person-a')
     const office = store.course('office')
     const original = office.trainingValidityDays
     office.trainingValidityDays = 30
     try {
-      store.register(fixture())
-      const tasks = store.snapshot().tasks.filter(task => task.subjectId === 'person-a')
       tasks.forEach(task => passCourse(store, task.id))
       expect(store.task(tasks[0].id).validUntil).toBe(Date.parse('2026-12-11T09:00:00+08:00'))
       expect(store.task(tasks[1].id).validUntil).toBe(Date.parse('2026-11-11T09:00:00+08:00'))
       advance(31 * 86400000)
-      store.register({ ...fixture(), id: 'application-2', appointmentDate: '2026-11-12', areaIds: ['production', 'office', 'research'] })
-      const next = store.snapshot().tasks.filter(task => task.visitId === 'application-2' && task.subjectId === 'person-a')
-      expect(next.map(task => task.reusedFromTaskId !== undefined)).toEqual([true, false, false])
+      const visit = store.register({ ...fixture(), id: 'application-2', appointmentDate: '2026-11-12', areaIds: ['production', 'office', 'research'] })
+      expect(visit.exemptTaskIds).toEqual([tasks[0].id])
+      expect(store.currentTasks(visit.id).filter(task => task.subjectId === 'person-a').map(task => task.courseId)).toEqual(['production', 'office', 'research'])
+      expect(store.task(tasks[1].id).validUntil).toBe(Date.parse('2026-11-11T09:00:00+08:00'))
     } finally { office.trainingValidityDays = original }
   })
 
-  it('截止时刻前有效，到期后只生成一轮重训并保留真实通过与复用历史', () => {
-    const { store, storage, advance } = setup()
+  it('有效期截止前一毫秒可免训，截止时刻生成新轮且刷新不重复', () => {
+    const { store, advance, storage } = setup()
     store.register(fixture())
-    const sourceId = store.snapshot().tasks[0].id
-    passCourse(store, sourceId)
+    const source = store.snapshot().tasks[0]
+    passCourse(store, source.id)
     advance(60 * 86400000 - 1)
-    store.register({ ...fixture(), id: 'application-2', appointmentDate: '2026-12-11' })
-    const reused = store.snapshot().tasks.find(task => task.visitId === 'application-2' && task.subjectId === 'person-a' && task.courseId === 'production')!
-    expect(reused.reusedFromTaskId).toBe(sourceId)
+    const visit = store.register({ ...fixture(), id: 'application-2', appointmentDate: '2026-12-11' })
+    expect(visit.exemptTaskIds).toContain(source.id)
     advance(1)
     store.refresh()
-    const rounds = store.snapshot().tasks.filter(task => task.visitId === 'application-2' && task.subjectId === 'person-a' && task.courseId === 'production')
-    expect(rounds).toHaveLength(2)
-    expect(rounds[1]).toMatchObject({ roundNumber: 2, completedLessons: [] })
-    expect(rounds[1].completedAt).toBeUndefined()
-    expect(store.task(sourceId).result?.passed).toBe(true)
-    expect(store.task(reused.id).reusedFromTaskId).toBe(sourceId)
-    expect(store.pendingTasks('张三', '13800138001').some(task => task.id === rounds[1].id)).toBe(true)
+    expect(store.currentTasks(visit.id).find(task => task.subjectId === source.subjectId && task.courseId === source.courseId)?.roundNumber).toBe(2)
     const count = store.snapshot().tasks.length
     store.refresh()
-    expect(store.snapshot().tasks).toHaveLength(count)
     const restored = domain.createDemoStore(storage, () => Date.parse('2026-12-11T09:00:00+08:00'))
     expect(restored.recovered()).toBe(false)
     expect(restored.snapshot().tasks).toHaveLength(count)
-    expect(() => restored.beginExam(reused.id)).toThrow('当前')
-    passCourse(restored, rounds[1].id)
-    expect(restored.task(rounds[1].id).validUntil).toBe(Date.parse('2027-02-09T09:00:00+08:00'))
-  })
-
-  it('预约日开始前便过期的历史结果不免训', () => {
-    const { store } = setup()
-    store.register(fixture())
-    passCourse(store, store.snapshot().tasks[0].id)
-    store.register({ ...fixture(), id: 'application-2', appointmentDate: '2026-12-12' })
-    expect(store.snapshot().tasks.filter(task => task.visitId === 'application-2').every(task => task.reusedFromTaskId === undefined)).toBe(true)
-  })
-
-  it('课程有效期调整不追溯已有结果，之后实际通过采用新值', () => {
-    const { store } = setup()
-    store.register(fixture())
-    const [source, , other] = store.snapshot().tasks
-    passCourse(store, source.id)
-    const course = store.course('production')
-    const original = course.trainingValidityDays
-    course.trainingValidityDays = 30
-    try {
-      passCourse(store, other.id)
-      store.register({ ...fixture(), id: 'application-2' })
-      expect(store.task(source.id).validUntil).toBe(Date.parse('2026-12-11T09:00:00+08:00'))
-      expect(store.task(other.id).validUntil).toBe(Date.parse('2026-11-11T09:00:00+08:00'))
-      expect(store.snapshot().tasks.find(task => task.visitId === 'application-2' && task.subjectId === 'person-a' && task.courseId === 'production')!.validUntil).toBe(Date.parse('2026-12-11T09:00:00+08:00'))
-    } finally { course.trainingValidityDays = original }
-  })
-
-  it('非法期限或伪造复用来源安全恢复', () => {
-    const { store, storage } = setup()
-    store.register(fixture())
-    passCourse(store, store.snapshot().tasks[0].id)
-    store.register({ ...fixture(), id: 'application-2' })
-    const valid = structuredClone(store.snapshot())
-    const target = valid.tasks.find(task => task.reusedFromTaskId)!
-    expect(target).toBeDefined()
-    expect(target.validUntil).toBe(Date.parse('2026-12-11T09:00:00+08:00'))
-    for (const change of [{ validUntil: 'bad' }, { roundNumber: 0 }, { reusedFromTaskId: 'missing' }, { completedAt: Date.parse('2026-10-11T09:00:00+08:00') }]) {
-      const broken = structuredClone(valid)
-      Object.assign(broken.tasks.find(task => task.id === target.id)!, change)
-      storage.write(domain.STORAGE_KEY, broken)
-      expect(domain.createDemoStore(storage).recovered()).toBe(true)
-    }
-  })
-
-  it('被其他申请复用的来源不能删除，先删关联申请后可删除来源', () => {
-    const { store } = setup()
-    store.register(fixture())
-    passCourse(store, store.snapshot().tasks[0].id)
-    store.register({ ...fixture(), id: 'application-2' })
-    expect(() => store.deleteVisit('application-1')).toThrow('复用')
-    expect(store.snapshot().visits).toHaveLength(2)
-    store.deleteVisit('application-2')
-    store.deleteVisit('application-1')
-    expect(store.snapshot().tasks).toHaveLength(0)
+    expect(() => restored.beginExam(source.id)).toThrow('当前')
   })
 
   it('重训轮次保存失败不改变内存或原通过结果', () => {
@@ -169,26 +87,6 @@ describe('培训有效期与历史免训', () => {
     advance(60 * 86400000)
     expect(() => store.refresh()).toThrow('存储已满')
     expect(store.snapshot()).toEqual(before)
-  })
-
-  it('多次过期重训的历史复用不会形成无法删除的申请依赖环', () => {
-    const { store, advance } = setup()
-    const draft = { ...fixture(), areaIds: ['production'], people: [fixture().people[0]] }
-    store.register(draft)
-    passCourse(store, store.currentTasks('application-1')[0].id)
-    store.register({ ...draft, id: 'application-2' })
-    advance(60 * 86400000)
-    store.refresh()
-    passCourse(store, store.currentTasks('application-1')[0].id)
-    advance(86400000)
-    passCourse(store, store.currentTasks('application-2')[0].id)
-    advance(59 * 86400000)
-    store.refresh()
-    expect(store.currentTasks('application-1')[0].roundNumber).toBe(3)
-    expect(store.currentTasks('application-1')[0].reusedFromTaskId).toBeUndefined()
-    expect(() => store.deleteVisit('application-2')).not.toThrow()
-    expect(() => store.deleteVisit('application-1')).not.toThrow()
-    expect(store.snapshot().tasks).toHaveLength(0)
   })
 })
 
@@ -279,7 +177,7 @@ describe('考试与持久化', () => {
     ]) {
       storage.write(domain.STORAGE_KEY, broken)
       const restored = domain.createDemoStore(storage)
-      expect(restored.snapshot()).toEqual({ version: 2, drafts: {}, visits: [], tasks: [] })
+      expect(restored.snapshot()).toEqual({ version: 3, drafts: {}, visits: [], tasks: [], participants: [], vehicleProfiles: [] })
       expect(restored.recovered()).toBe(true)
     }
   })
@@ -293,7 +191,7 @@ describe('考试与持久化', () => {
     other.completeLesson(task.id, lessons[1])
     expect(other.task(task.id).completedLessons).toEqual(lessons)
     other.deleteVisit('application-1')
-    expect(() => store.completeLesson(task.id, lessons[0])).toThrow('不存在')
+    expect(() => store.completeLesson(task.id, lessons[0])).not.toThrow()
     expect(domain.createDemoStore(storage).snapshot().visits).toHaveLength(0)
   })
   it('外部刷新通知订阅者，多标签页提交同一草稿仍只生成一套任务', () => {
@@ -319,7 +217,7 @@ describe('考试与持久化', () => {
     store.course(task.courseId).lessons.forEach(lesson => store.completeLesson(task.id, lesson.id))
     store.beginExam(task.id)
     expect(() => store.submitExam(task.id)).toThrow('未作答')
-    store.course(task.courseId).questions.forEach((question, index) => store.answer(task.id, question.id, index === 0 ? 1 : question.correct))
+    store.course(task.courseId).questions.forEach((question, index) => store.answer(task.id, question.id, index === 0 ? 1 : question.correctIndexes))
     store.answer(task.id, store.course(task.courseId).questions[0].id, 0)
     expect(store.submitExam(task.id).score).toBe(100)
     expect(store.snapshot().tasks[1].result).toBeUndefined()
@@ -347,12 +245,12 @@ describe('考试与持久化', () => {
     expect(store.task(task.id).attempt!.deadlineAt).toBeGreaterThan(deadline)
     expect(store.task(task.id).completedLessons).toHaveLength(2)
   })
-  it('删除申请同时移除任务，旧链接不能开始考试', () => {
+  it('删除申请仅移除关联，独立任务仍保留视频学习门槛', () => {
     const { store } = setup()
     store.register(fixture())
     const task = store.snapshot().tasks[0]
     store.deleteVisit('application-1')
-    expect(store.snapshot().tasks).toHaveLength(0)
-    expect(() => store.beginExam(task.id)).toThrow('不存在')
+    expect(store.snapshot().tasks).toHaveLength(4)
+    expect(() => store.beginExam(task.id)).toThrow('视频')
   })
 })

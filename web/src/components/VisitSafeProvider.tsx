@@ -6,10 +6,6 @@ const VisitSafeContext = createContext<{ store: DemoStore; state: AppState } | n
 
 export function VisitSafeProvider({ children }: { children: ReactNode }) {
   const [store] = useState(() => {
-    try {
-      localStorage.removeItem('visitsafe.web.v1')
-      for (const key of Object.keys(sessionStorage)) if (key.startsWith('visitsafe.web.video.')) sessionStorage.removeItem(key)
-    } catch { /* The new namespace never reads legacy data. */ }
     return createDemoStore({
       read: key => { const value = localStorage.getItem(key); if (value === null) return undefined; try { return JSON.parse(value) } catch { return null } },
       write: (key, value) => localStorage.setItem(key, JSON.stringify(value)),

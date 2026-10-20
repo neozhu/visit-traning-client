@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 import { AREAS, ENTRIES, formatMoment } from '../domain/store'
 import { useVisitSafe } from '../components/VisitSafeProvider'
 import { Badge, Icon, Missing, Screen, Section, notifyError } from '../components/UI'
+import { ApplicationNotice } from '../components/ApplicationNotice'
 import { VisitSummary } from '../components/VisitSummary'
 
 export function RecordsPage() {
@@ -31,11 +32,11 @@ export function RecordDetailPage() {
   const tasks = store.currentTasks(visit.id)
   const completed = tasks.filter(task => store.isTrainingValid(task)).length
   async function remove() {
-    if (!await Dialog.confirm({ title: '删除这张申请？', content: '这张申请的人员资料、视频进度和考试结果将同时删除。', confirmText: '确认删除', cancelText: '保留记录' })) return
+    if (!await Dialog.confirm({ title: '删除这张申请？', content: '仅删除本申请，人员、车辆档案和培训考试记录将保留。', confirmText: '确认删除', cancelText: '保留记录' })) return
     try { store.deleteVisit(visit!.id); navigate('/records', { replace: true }) } catch (error) { notifyError(error) }
   }
-  return <Screen title="申请详情" backTo="/records"><div className="detail-banner"><Icon name="shield" size={32} /><div><h2>{ENTRIES[visit.type].label}登记</h2><p>已通过 {completed} / {tasks.length} 门个人课程</p></div></div><VisitSummary draft={visit} />
-    <Section title="个人培训记录">{visit.subjects.map(person => <div className="card participant-record" key={person.id}><div className="flex justify-between"><strong>{person.name}</strong><button type="button" className="text-button" onClick={() => navigate(`/tasks/${visit.id}?person=${person.id}`)}>查看课程</button></div>{tasks.filter(task => task.subjectId === person.id).map(task => <div key={task.id} className="summary-row"><span>{store.course(task.courseId).title}</span><Badge tone={store.isTrainingValid(task) ? 'green' : 'blue'}>{store.isTrainingValid(task) ? task.reusedFromTaskId ? '有效期内免训' : `${task.result!.score} 分 · 通过` : task.attempt ? '考试中' : task.roundNumber > 1 ? '需重新学习' : '待完成'}</Badge></div>)}</div>)}</Section>
+  return <ApplicationNotice visit={visit}><Screen title="申请详情" backTo="/records"><div className="detail-banner"><Icon name="shield" size={32} /><div><h2>{ENTRIES[visit.type].label}登记</h2><p>已通过 {completed} / {tasks.length} 门个人课程</p></div></div><VisitSummary draft={visit} />
+    <Section title="个人培训记录">{visit.subjects.map(person => <div className="card participant-record" key={person.id}><div className="flex justify-between"><strong>{person.name}</strong><button type="button" className="text-button" onClick={() => navigate(`/tasks/${visit.id}?person=${person.id}`)}>查看课程</button></div>{tasks.filter(task => task.subjectId === person.id).map(task => <div key={task.id} className="summary-row"><span>{task.courseSnapshot.title}</span><Badge tone={store.isTrainingValid(task) ? 'green' : 'blue'}>{store.isTrainingValid(task) ? visit.exemptTaskIds.includes(task.id) ? '有效期内免训' : `${task.result!.score} 分 · 通过` : task.attempt ? '考试中' : task.roundNumber > 1 ? '需重新学习' : '待完成'}</Badge></div>)}</div>)}</Section>
     <Button block color="primary" onClick={() => navigate(`/tasks/${visit.id}`)}>{completed === tasks.length ? '查看培训任务' : '继续培训'}</Button><Button block fill="none" color="danger" className="mt-3" onClick={remove}>删除申请</Button>
-  </Screen>
+  </Screen></ApplicationNotice>
 }
