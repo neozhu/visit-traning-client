@@ -84,6 +84,7 @@ interface ClientContextDto {
   businessTimeZone: 'Asia/Shanghai'
   today: DateOnlyString
 }
+interface BrowserTotalsDto { applicationCount: number; pendingTrainingCount: number }
 ```
 
 所有响应包含 `X-Server-Time`。业务日期和预约日边界按 Asia/Shanghai；显示校准不代替服务端判定。包含上下文、个人资料、申请、学习或考试的响应使用 `Cache-Control: no-store`。
@@ -170,6 +171,11 @@ workspace 使用 POST：申请读取可能刷新过期任务关联，培训读�
 首次没有完整缓存时 knownBaseDataVersion 省略或为 null。participantKeys、plates 可省略，分别最多 20 项；可以随首次请求一次发送草稿里已有的精确键。成功返回 200：
 
 ```typescript
+interface BootstrapRequest {
+  knownBaseDataVersion?: string | null
+  participantKeys?: Array<{ name: string; phone: string }>
+  plates?: string[]
+}
 interface VisitTypeDto {
   id: Id
   code: string
@@ -247,6 +253,11 @@ interface BaseDataDto {
   areas: AreaOptionDto[]
   courses: CoursePreviewDto[]
   userOptions: UserOptionDto[]
+  attachmentRules: {
+    allowedContentTypes: string[]
+    maxSizeBytes: number
+    maxFilesPerParticipant: number
+  }
   validationRules: {
     phonePattern: string
     platePattern: string
@@ -272,7 +283,7 @@ interface BootstrapDto {
   clientContext: ClientContextDto
   baseDataVersion: string
   baseData: BaseDataDto | null
-  totals: { applicationCount: number; pendingTrainingCount: number }
+  totals: BrowserTotalsDto
   profileMatches: ProfileMatchesDto
 }
 ```
@@ -283,7 +294,8 @@ interface BootstrapDto {
 - timeSlots 来自共用 PicklistSet。其他业务下拉选项放在 fields.options；同一业务区域、课程摘要和用户摘要只在共享集合保存一份，各类型引用其 Id。
 - areaRules 保存每个类型下各区域的可选状态、不可选原因及必修课程 Id；缺少有效课程或审批负责人时不可选。选择区域后，本地取课程并集即可预览，无课程预览接口。
 - userOptions 为所有启用类型字段候选的去重并集，只含用户 Id 和显示姓名；fields.eligibleUserIds 确定某字段可选范围。首次全量返回当前范围的可选人员，在前端搜索、筛选和列表滚动，不再调用 user-options。未成为候选的后台人员、账号、角色、手机号不返回。
-- validationRules 下发与服务端一致、可由前端执行的格式和长度规则；正则限 JavaScript RegExp 兼容的格式表达式。车牌按下发的忽略字符和大写规则规范化；人员姓名、手机号去首尾空格。服务端仍执行相同规则和最终业务校验。
+- validationRules 下发与服务端一致、可由前端执行的格式和长度规则；正则限 JavaScript RegExp 兼容的格式表达式。车牌删除空白，再按 plateIgnoredCharacters 中列出的其他分隔符和大写规则规范化；人员姓名、手机号去首尾空格。服务端仍执行相同规则和最终业务校验。
+- attachmentRules 一次返回允许格式、字节上限及每人文件数，初始为 JPEG／PNG／PDF、10 MiB、1 份；本地选择文件时据此预校验，不为获取上传限制单独请求，也不要求前端硬编码这些配置。
 - participantRules.minimumCount 初始各类型为 1；同申请内姓名＋手机号不得重复，phoneUnique 为真时还禁止手机号重复。单位继承及车辆／运输单位必填均可由本地配置判断。
 
 首页、登记页或其他入口均可触发首次 bootstrap；同次应用运行只共享一份基础数据，不因页面或类型不同重复初始化。进入任何已载入类型的登记表单不再发配置请求。
@@ -440,8 +452,8 @@ interface ApplicationTaskDto {
   actions: TrainingActionsDto
 }
 type ApplicationWorkspaceDto =
-  | { view: 'notice'; applicationId: Id; applicationEtag: string; notice: NoticeDto }
-  | { view: 'detail'; application: ApplicationDetailDto; tasks: ApplicationTaskDto[] }
+  | { view: 'notice'; applicationId: Id; applicationEtag: string; notice: NoticeDto; browserTotals: BrowserTotalsDto }
+  | { view: 'detail'; application: ApplicationDetailDto; tasks: ApplicationTaskDto[]; browserTotals: BrowserTotalsDto }
 ```
 
 `POST /applications/{id}/workspace` 无业务请求体，返回 200。先检查申请权限；尚未确认须知返回 notice 分支，前端只展示保存的须知快照。确认后返回 detail 分支，可直接展示详情或本申请任务，全部／个人切换在页面内筛选，不再按人发查询。
@@ -504,6 +516,7 @@ interface TrainingRecordDto {
 }
 interface TrainingActionsDto { canLearn: boolean; canStartExam: boolean; canRetake: boolean }
 interface TrainingWorkspaceDto {
+  browserTotals: BrowserTotalsDto | null
   record: TrainingRecordDto
   participant: { id: Id; name: string; maskedPhone: string }
   applicationContext: {
@@ -524,6 +537,8 @@ interface TrainingWorkspaceDto {
 ```
 
 TrainingRecord 不包含 visitApplicationId 或 reusedFromTrainingRecordId。state 从真实进度、考试和时间推导；isExempt 属于申请使用该结果的上下文。同一实际通过记录的有效期、分数和考试历史只有一份。
+
+申请 workspace 返回当前浏览器的 browserTotals，按浏览器申请范围授权的培训 workspace 同样返回，方便操作后直接更新首页。个人 learningToken 范围下该字段为 null，不混入浏览器统计或他人的数量。本地更新已载入任务和单申请汇总；没有完整数据时不自行推算全局去重数量，直接使用这些返回值，避免为统计补查 bootstrap。
 
 ### 7.2 姓名＋手机号查询
 
@@ -758,7 +773,7 @@ TRAINING_RECORD_NOT_CURRENT 的 trainingWorkspace 可直接返回 currentTrainin
 - 根据 X-Server-Time 和本地经过时间推算业务当前时刻，按 Asia/Shanghai 更新“今天”、预约日期提示、剩余秒数和有效期展示。倒计时每秒、跨过午夜或有效期截止不调用时间／校验接口，不能只缓存服务端某一时刻的 isValid 布尔值。
 - 本地展示有效性只基于已返回的真实通过及 CompletedAt、ValidUntil；未拿到本人记录时不推断免训。申请任务只在本申请关联内选当前轮次，不将其他申请的更高轮次替换过来。
 - 普通页面返回、人员切换及恢复前台优先复用缓存并重算派生状态。只在用户主动刷新、凭证失效、版本冲突且响应未附现状、考试到期需要结算、或待使用媒体地址到期时，调用相应聚合接口；同一资源并发需求合并成一次请求。
-- 恢复前台时如发现考试已到期，使用 save(submit=true) 请求一次服务端结算，不先读一次再交卷。未过期且缓存和凭证可用时沿用同一试卷、截止时间和答案，并继续原保存队列；未确认成功的交卷或未知的远端状态通过一次 training workspace 恢复。
+- 恢复前台时如本地判断考试已到期，读取 training workspace 一次，服务端按实际 DeadlineAt 判断是否结算，响应直接用于结果页，不先读一次再自动交卷。未过期且缓存和凭证可用时沿用同一试卷、截止时间和答案，并继续原保存队列；未确认成功的交卷或未知的远端状态也通过一次 training workspace 恢复，避免设备时钟误差导致提前交卷。
 - 后台审批可能在缓存期间变化。页面标注当前已读取状态的时间并提供主动刷新，不为显示审批状态持续轮询；发起真实业务动作时仍由服务端按当前状态校验，冲突响应直接刷新页面数据。
 - token 到期或访问范围切换时只恢复对应凭证／清除对应个人缓存，不重新下载未变的全部基础数据。媒体地址刷新不重建培训或考试。
 
