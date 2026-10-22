@@ -43,6 +43,38 @@ docker compose ps
 
 这两个变量通过 Compose 的 `build.args` 传入 Dockerfile，并在 Vite 生产构建时写入静态文件。修改变量后执行 `docker compose up --build -d` 重新构建；仅重启容器不会更新前端配置。构建不读取本机 `web/.env.local`。
 
+### GitHub Actions 自动发布到 GHCR
+
+[Publish Docker Image 工作流](.github/workflows/docker-publish.yml) 复用根目录 Dockerfile，构建 `linux/amd64` 镜像并发布到 GitHub Container Registry。当前仓库的镜像地址为 `ghcr.io/neozhu/visit-traning-client`；仓库迁移或重命名后，工作流自动使用新的仓库名称。
+
+首次运行前，在仓库 **Settings → Secrets and variables → Actions** 配置：
+
+| 类型 | 名称 | 用途 |
+| --- | --- | --- |
+| Repository variable | `VITE_VISITSAFE_API_URL` | 浏览器可访问的 API 服务地址，不包含 `/api/v1`；同源反向代理部署可留空 |
+| Repository secret | `VITE_VISITSAFE_API_KEY` | 必填，后端要求的共享访问密钥；未配置时工作流会停止并提示 |
+
+发布认证使用 GitHub 自动提供的 `GITHUB_TOKEN`，工作流声明 `contents: read` 和 `packages: write`，无须额外配置镜像仓库密码。上述 API 地址和共享访问密钥仍在构建时写入浏览器代码，修改后需要重新构建镜像。参考：[GitHub 发布 Docker 镜像](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images)。
+
+触发方式与标签：
+
+- 推送到 `feat/visitsafe-react-mobile`、`main` 或 `master` 时构建并发布，生成 `latest`、分支标签及 `sha-<提交号前七位>`。
+- 推送 `v*` 标签（例如 `v1.0.0`）时发布 `latest`、同名版本标签和提交号标签。
+- 工作流文件进入仓库默认分支后，也可从 **Actions → Publish Docker Image → Run workflow** 选择分支手动发布。当前远端默认分支为 `feat/visitsafe-demo`，仅推送开发分支不会显示手动运行入口；开发分支的 push 触发不受影响。参考：[手动运行工作流](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)。
+
+每次发布都会更新 `latest`；需要固定版本时使用版本标签或提交号标签。镜像和版本可在 GitHub 仓库关联的 **Packages** 中查看。
+
+部署已发布镜像，无须在服务器上构建源码：
+
+```powershell
+docker pull ghcr.io/neozhu/visit-traning-client:latest
+docker run -d --name visitsafe --restart unless-stopped -p 8080:80 ghcr.io/neozhu/visit-traning-client:latest
+```
+
+GHCR 首次创建的包默认为私有。拉取私有镜像前，执行 `docker login ghcr.io -u neozhu`，使用具有该包访问权限及 `read:packages` 范围的 personal access token（classic）登录；Portainer 可在 Registries 中配置相同凭据。也可按需要在包设置中调整可见性。参考：[GHCR 认证与可见性](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)。
+
+### Portainer 从源码构建
+
 在 **Portainer 连接本机 Docker socket** 的单机环境中，使用 **Stacks → Add stack → Repository**：
 
 | 配置 | 值 |
@@ -86,6 +118,7 @@ React 应用使用独立的 `visitsafe.web.v3` 浏览器存储，不迁移或兼
 | `web/public/assets/` | 图标、插图和演示视频 |
 | `doc/` | React 规范、业务需求与视觉参考 |
 | `Dockerfile`、`docker-compose.yml` | 生产镜像与 Portainer Git Stack 部署 |
+| `.github/workflows/docker-publish.yml` | 自动构建 Docker 镜像并发布到 GHCR |
 | `docker/nginx.conf` | 静态资源、React 路由回退和健康检查 |
 
 ## 图标许可
