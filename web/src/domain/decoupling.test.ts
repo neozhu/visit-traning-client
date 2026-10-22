@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoStore, newDraft, STORAGE_KEY } from './store'
+import { createDemoStore, newDraft, STORAGE_KEY } from './localStore'
 import type { Person } from './types'
 
 const person: Person = { id: 'zhang', name: '张三', phone: '13800138001', company: '原单位' }

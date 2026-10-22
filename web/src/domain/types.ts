@@ -1,4 +1,4 @@
-export type EntryType = 'visitor' | 'logistics' | 'contractor'
+export type EntryType = string
 export interface Person { id: string; name: string; phone: string; company: string; trade?: string }
 export interface Vehicle { id: string; plate: string; driver: string; phone: string; company: string }
 export interface AccompanyingVehicle { id: string; plate: string }
@@ -22,12 +22,14 @@ export interface Draft {
   vehicles: Vehicle[]
   accompanyingVehicles: AccompanyingVehicle[]
   areaIds: string[]
+  configurationVersion?: string
+  noticeVersion?: string
 }
 export interface VehicleProfile { id: string; plate: string; company: string; driverName?: string }
 export interface VehicleSnapshot { vehicleId: string; plate: string; company: string; driverName?: string; checkedInAt?: number; checkedInById?: string; checkedOutAt?: number; checkedOutById?: string }
 export interface NoticeSnapshot { title: string; content: string }
 export interface Visit extends Draft { createdAt: number; subjects: Person[]; courseIds: string[]; taskIds: string[]; exemptTaskIds: string[]; vehicleSnapshots: VehicleSnapshot[]; noticeSnapshot: NoticeSnapshot; noticeAcceptedAt?: number; source: 'external' | 'internal' }
-export interface Lesson { id: string; title: string; description: string; source: string }
+export interface Lesson { id: string; title: string; description: string; source: string; durationSeconds?: number }
 export interface Question { id: string; title: string; options: string[]; kind: 'single' | 'multiple'; correctIndexes: number[]; explanation: string }
 export interface Course { id: string; title: string; subtitle: string; icon: string; trainingValidityDays: number; passScore: number; examDurationMinutes: number; lessons: Lesson[]; questions: Question[] }
 export interface ExamAttempt { id: string; attemptNumber: number; startedAt: number; deadlineAt: number; answers: Record<string, number[]> }

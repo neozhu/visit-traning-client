@@ -1,3 +1,4 @@
+import { t } from '../../i18n'
 import { Input } from 'antd-mobile'
 import type { Draft } from '../../domain/types'
 import { FieldError, Icon } from '../UI'
@@ -15,7 +16,7 @@ type TextField = 'hostName' | 'projectName' | 'workArea' | 'contractorCompany' |
 export function RegistrationTextField({ draft, errors, onChange, field, label }: RegistrationCardProps & { field: TextField; label: string }) {
   return <label className="field">
     <span>{label}<em>*</em></span>
-    <Input aria-label={label} value={draft[field] || ''} placeholder={`请输入${label}`} maxLength={60} onChange={value => onChange(field, value)} />
+    <Input aria-label={label} value={draft[field] || ''} placeholder={t('请输入{0}', { 0: label })} maxLength={60} onChange={value => onChange(field, value)} />
     <FieldError message={errors[field]} />
   </label>
 }

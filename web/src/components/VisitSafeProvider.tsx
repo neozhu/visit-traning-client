@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createDemoStore, STORAGE_KEY, type DemoStore } from '../domain/store'
 import type { AppState } from '../domain/types'
@@ -22,7 +23,7 @@ export function VisitSafeProvider({ children }: { children: ReactNode }) {
     const timer = window.setInterval(refresh, 60000)
     return () => { window.removeEventListener('storage', storageChanged); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', visible); window.clearInterval(timer) }
   }, [store])
-  return <VisitSafeContext value={{ store, state }}>{store.recovered() && <div className="cache-recovery" role="status">本地演示数据不完整，已恢复为空白状态，请重新登记。</div>}{children}</VisitSafeContext>
+  return <VisitSafeContext value={{ store, state }}>{store.recovered() && <div className="cache-recovery" role="status">{t('本地演示数据不完整，已恢复为空白状态，请重新登记。')}</div>}{children}</VisitSafeContext>
 }
 
 export function useVisitSafe() {

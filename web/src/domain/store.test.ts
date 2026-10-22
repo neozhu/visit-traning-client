@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import * as domain from './store'
+import * as domain from './localStore'
 import type { Draft, EntryType } from './types'
 
 const fixture = (type: EntryType = 'visitor'): Draft => ({

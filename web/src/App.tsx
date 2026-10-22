@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router'
 import { useEffect } from 'react'
 import { VisitSafeProvider } from './components/VisitSafeProvider'
@@ -27,6 +28,6 @@ export function App() {
     <Route path="/records" element={<RecordsPage />} />
     <Route path="/records/:visitId" element={<RecordDetailPage />} />
     <Route path="/index.html" element={<Navigate to="/" replace />} />
-    <Route path="*" element={<Missing title="页面不存在" />} />
+    <Route path="*" element={<Missing title={t('页面不存在')} />} />
   </Routes></BrowserRouter></VisitSafeProvider>
 }

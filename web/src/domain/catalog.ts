@@ -4,7 +4,7 @@ export const TIME_SLOTS = ['08:30–12:00', '13:00–17:00']
 export const VISIT_REASONS = ['会议', '面试', '洽谈']
 export const LOGISTICS_REASONS = ['送货', '提货', '退货', '空车入厂']
 export const CARGO_TYPES = ['原材料', '设备', '成品', '废料', '其他']
-export const ENTRIES = {
+export const ENTRIES: Record<EntryType, { label: string; description: string; icon: string; color: string; notice: string }> = {
   visitor: { label: '普通访客', description: '来访人员登记与安全培训', icon: 'user-home', color: 'green', notice: '请如实填写来访人员资料，遵守厂区管理规定，在被访人安排下进入申请区域。' },
   logistics: { label: '物流车辆', description: '司机及车辆登记与安全培训', icon: 'truck-home', color: 'orange', notice: '车辆遵守厂区限速与指定路线，装卸须听从现场指挥，每位司机均须取得有效的安全培训合格结果。' },
   contractor: { label: '施工人员', description: '施工人员登记与安全培训', icon: 'helmet-home', color: 'purple', notice: '施工前确认作业许可，按要求做好个人防护和现场隔离，服从现场负责人的安全管理。' },
