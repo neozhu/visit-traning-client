@@ -25,14 +25,23 @@ npm run test:e2e          # 手机尺寸的完整浏览器流程
 
 根目录的 `Dockerfile` 使用 Node 24 安装锁定依赖并构建应用，再将静态产物和资源复制到 Nginx Alpine 镜像。已配置 React 路由回退、资源缺失时返回 404、首页缓存重验证和 `/healthz` 健康检查。
 
-本机 Docker 可直接运行：
+本机 Docker 先配置 API 地址和共享访问密钥，再构建启动：
 
 ```powershell
+$env:VITE_VISITSAFE_API_URL = 'https://api.example.com'
+$env:VITE_VISITSAFE_API_KEY = 'replace-with-api-key'
 docker compose up --build -d
 docker compose ps
 ```
 
 默认地址为 `http://服务器IP:8080`。可通过 `HTTP_PORT` 调整宿主机端口，例如在 PowerShell 中先执行 `$env:HTTP_PORT = '8090'`，或在 Portainer 的环境变量区域设置 `HTTP_PORT=8090`。
+
+| 变量 | 用途 |
+| --- | --- |
+| `VITE_VISITSAFE_API_URL` | 浏览器可访问的 API 服务地址，不包含 `/api/v1`。留空时请求当前站点的 `/api/v1`，需由外部反向代理转发到后端；镜像内 Nginx 只提供静态页面。 |
+| `VITE_VISITSAFE_API_KEY` | 后端要求的共享访问密钥；为空时前端无法调用接口。此值会包含在浏览器下载的代码中。 |
+
+这两个变量通过 Compose 的 `build.args` 传入 Dockerfile，并在 Vite 生产构建时写入静态文件。修改变量后执行 `docker compose up --build -d` 重新构建；仅重启容器不会更新前端配置。构建不读取本机 `web/.env.local`。
 
 在 **Portainer 连接本机 Docker socket** 的单机环境中，使用 **Stacks → Add stack → Repository**：
 
@@ -42,12 +51,12 @@ docker compose ps
 | Repository URL | `https://github.com/neozhu/visit-traning-client.git` |
 | Repository reference | `refs/heads/feat/visitsafe-react-mobile` |
 | Compose path | `docker-compose.yml` |
-| Environment variables | 可选：`HTTP_PORT=8080` |
+| Environment variables | `VITE_VISITSAFE_API_URL`、`VITE_VISITSAFE_API_KEY`；可选：`HTTP_PORT=8080` |
 | Re-pull image | 关闭，本配置从源码构建本机镜像 |
 
 先将包含这些部署文件的提交推送到上述分支，再点击 **Deploy the stack**。私有仓库在 Portainer 中填写 Git 认证信息。`pull_policy: build` 会在部署和更新时重新构建应用，已有依赖层可复用缓存；之后通过 **Pull and redeploy** 更新。若改用其他分支或仓库，同步修改 Portainer 中的引用。
 
-配置没有宿主机目录挂载；Nginx 配置、页面和视频都在镜像内，不需要启用相对路径卷。应用数据仍保存在访问者浏览器中，不需要容器数据卷，也不会变成跨设备共享数据。
+配置没有宿主机目录挂载；Nginx 配置、页面和视频都在镜像内，不需要启用相对路径卷。当前前端通过 API 获取申请、学习进度和考试数据，本地仅保存草稿与访问凭证；前端容器不需要数据卷。
 
 本方式以本机 Docker socket 为前提；Portainer 官方列出远程 Docker 环境的 Compose `build` 限制。若改成 Agent／远程环境，应先构建并发布镜像，再使用仅含 `image` 的 Stack。参考：[Portainer Git Stack 部署](https://docs.portainer.io/user/docker/stacks/add#option-3-git-repository)、[远程构建限制](https://docs.portainer.io/faqs/known-issues/docker-compose-files-including-build-steps-fail)、[Compose 镜像构建策略](https://docs.docker.com/reference/compose-file/services/#pull_policy)。
 

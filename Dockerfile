@@ -4,6 +4,10 @@ WORKDIR /app
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --include=dev
 COPY web/ ./
+
+# Vite embeds these browser-visible values during the production build.
+ARG VITE_VISITSAFE_API_URL=""
+ARG VITE_VISITSAFE_API_KEY=""
 RUN npm run build
 
 FROM nginx:stable-alpine
