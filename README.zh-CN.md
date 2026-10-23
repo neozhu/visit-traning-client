@@ -78,6 +78,37 @@ npm run dev
 
 Docker 与 Portainer 的配置见 **[开发与部署指南](doc/DEPLOYMENT.md)**。
 
+### 使用 GHCR 镜像本地部署
+
+通过 [docker-compose.ghcr.yml](docker-compose.ghcr.yml) 一次启动访客前台、管理后台和 SQL Server。请先安装支持 Compose v2 的 Docker 并启动 Docker 引擎，无需在本机安装 Node.js 或编译前端。
+
+在仓库根目录创建 `.env.ghcr.local`，填写以下配置，并替换共享密钥与数据库密码。该文件包含敏感配置，请妥善保管，不要提交到 Git：
+
+```dotenv
+VISITSAFE_API_URL=http://localhost:5505
+APP_URL=http://localhost:5505
+VISITSAFE_API_KEY=replace-with-a-long-random-key
+SQL_SERVER_PASSWORD=ReplaceWithAStrongPassword123!
+ASPNETCORE_URLS=http://+:80
+```
+
+`VISITSAFE_API_URL` 必须是浏览器可访问的后台地址，不包含 `/api/v1`。使用同一局域网内的手机访问时，将两个 URL 中的 `localhost` 都改为 Docker 主机的局域网 IP。共享 API 密钥也会传给前端，浏览器用户可以查看。此示例使用 HTTP；HTTPS 需要另行配置证书或反向代理。
+
+在仓库根目录执行：
+
+```powershell
+docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml config --quiet
+docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml pull
+docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml up -d
+docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml ps
+```
+
+启动后访问访客前台 `http://localhost:8080`、管理后台 `http://localhost:5505`。需要调整端口时，在环境文件中设置 `WEB_PORT` 和 `BACKEND_HTTP_PORT`，并同步修改后台 URL。后台会等待 SQL Server 健康检查通过后启动；启动异常时，可用 `docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml logs --tail 100` 查看日志。
+
+更新镜像时重新执行 `pull` 和 `up -d`。停止服务使用 `docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml down`。数据库与上传文件分别保存在 `mssql_data` 和 `backend_files` 数据卷中；添加 `--volumes` 会删除这些数据。
+
+此方案使用 GHCR 发布镜像，其中前端镜像须支持 Compose 传入的运行时 `VITE_VISITSAFE_*` 变量；上方源码构建方案使用的是构建时配置。SMTP、对象存储等可选集成按需通过 Compose 文件中列出的变量配置。
+
 前端采用 React、TypeScript、Vite、Ant Design Mobile 与 Tailwind CSS，面向现代手机浏览器设计。
 
 ## 项目资料

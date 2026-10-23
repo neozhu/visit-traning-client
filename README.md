@@ -78,6 +78,37 @@ npm run dev
 
 For Docker and Portainer, follow the **[development and deployment guide](doc/DEPLOYMENT.md)**.
 
+### Local deployment with GHCR images
+
+Use [docker-compose.ghcr.yml](docker-compose.ghcr.yml) to run the visitor frontend, management backend, and SQL Server from published images. Install Docker with Compose v2 and start the Docker engine; no local Node.js build is required.
+
+Create `.env.ghcr.local` in the repository root with the following values, replacing the key and database password. Keep this file private and do not commit it:
+
+```dotenv
+VISITSAFE_API_URL=http://localhost:5505
+APP_URL=http://localhost:5505
+VISITSAFE_API_KEY=replace-with-a-long-random-key
+SQL_SERVER_PASSWORD=ReplaceWithAStrongPassword123!
+ASPNETCORE_URLS=http://+:80
+```
+
+`VISITSAFE_API_URL` is the browser-accessible backend address, without `/api/v1`. For access from a phone on the same network, replace `localhost` in both URLs with the Docker host's LAN IP. The shared API key is also sent to the frontend and is visible to browser users. This example uses HTTP; HTTPS requires a separate certificate or reverse-proxy configuration.
+
+Run these commands from the repository root:
+
+```powershell
+docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml config --quiet
+docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml pull
+docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml up -d
+docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml ps
+```
+
+Open the visitor frontend at `http://localhost:8080` and the management backend at `http://localhost:5505`. Override `WEB_PORT` and `BACKEND_HTTP_PORT` in the environment file if needed, updating the backend URLs to match. The backend starts after SQL Server passes its health check; inspect startup errors with `docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml logs --tail 100`.
+
+To update, repeat `pull` and `up -d`. To stop, run `docker compose --env-file .env.ghcr.local -f docker-compose.ghcr.yml down`. The `mssql_data` and `backend_files` volumes retain database and uploaded-file data; adding `--volumes` deletes them.
+
+This setup uses the published GHCR images, whose frontend must support the runtime `VITE_VISITSAFE_*` variables supplied by this Compose file. The source-build deployment above uses build-time configuration instead. Configure optional SMTP, object storage, and other integrations through the variables listed in the Compose file as needed.
+
 The frontend is built with React, TypeScript, Vite, Ant Design Mobile, and Tailwind CSS, and is designed for modern phone browsers.
 
 ## Explore the project
