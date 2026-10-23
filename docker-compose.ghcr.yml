@@ -1,0 +1,73 @@
+services:
+  web:
+    image: ghcr.io/neozhu/visit-training-management-web:latest
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    environment:
+      VITE_VISITSAFE_API_URL: ${VISITSAFE_API_URL:?Set VISITSAFE_API_URL to the browser-accessible backend URL}
+      VITE_VISITSAFE_API_KEY: ${VISITSAFE_API_KEY:?Set VISITSAFE_API_KEY}
+    restart: unless-stopped
+
+  dashboard:
+    image: ghcr.io/neozhu/visit-training-management-backend:latest
+    environment:
+      TZ: ${DEFAULT_TIME_ZONE:-Asia/Shanghai}
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: ${ASPNETCORE_URLS:-http://+:80;https://+:443}
+      ASPNETCORE_HTTP_PORTS: ${ASPNETCORE_HTTP_PORTS:-80}
+      ASPNETCORE_HTTPS_PORTS: ${ASPNETCORE_HTTPS_PORTS:-443}
+      AppConfigurationSettings__ApplicationUrl: ${APP_URL:?Set APP_URL to the backend public URL}
+      AppConfigurationSettings__AppName: ${APP_NAME:-Visit Management}
+      DatabaseSettings__DBProvider: mssql
+      DatabaseSettings__ConnectionString: "Server=sqldb,1433;Database=visit-training;User Id=sa;Password=${SQL_SERVER_PASSWORD:?Set SQL_SERVER_PASSWORD};TrustServerCertificate=True"
+      VisitSafeApi__ApiKey: ${VISITSAFE_API_KEY:?Set VISITSAFE_API_KEY}
+      AISettings__GeminiApiKey: ${GEMINI_API_KEY:-}
+      AISettings__OpenAIApiKey: ${OPENAI_API_KEY:-}
+      AISettings__ModelId: ${AI_MODEL_ID:-gpt-5-nano}
+      SmtpClientOptions__UserName: ${SMTP_USERNAME:-}
+      SmtpClientOptions__Port: ${SMTP_PORT:-25}
+      SmtpClientOptions__Host: ${SMTP_HOST:-}
+      SmtpClientOptions__Password: ${SMTP_PASSWORD:-}
+      SmtpClientOptions__DefaultFromEmail: ${SMTP_DEFAULT_FROM:-noreply@blazorserver.com}
+      SmtpClientOptions__UseSsl: ${SMTP_USE_SSL:-false}
+      SmtpClientOptions__RequireCredentials: ${SMTP_REQUIRE_CREDENTIALS:-true}
+      Authentication__Microsoft__ClientId: ${MS_CLIENT_ID:-}
+      Authentication__Microsoft__ClientSecret: ${MS_CLIENT_SECRET:-}
+      Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Minio__Endpoint: ${MINIO_ENDPOINT:-minio.blazorserver.com}
+      Minio__AccessKey: ${MINIO_ACCESS_KEY:-}
+      Minio__SecretKey: ${MINIO_SECRET_KEY:-}
+      Minio__BucketName: ${MINIO_BUCKET:-files}
+      Minio__UseSSL: ${MINIO_USE_SSL:-true}
+      MaxMind__AccountId: ${MAXMIND_ACCOUNT_ID:-0}
+      MaxMind__LicenseKey: ${MAXMIND_LICENSE_KEY:-}
+      MaxMind__Host: ${MAXMIND_HOST:-geolite.info}
+    ports:
+      - "${BACKEND_HTTP_PORT:-5505}:80"
+      - "${BACKEND_HTTPS_PORT:-5506}:443"
+    volumes:
+      - backend_files:/app/Files
+    depends_on:
+      sqldb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  sqldb:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SQL_SERVER_PASSWORD:?Set SQL_SERVER_PASSWORD}
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -C -Q "SELECT 1" -b -o /dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  backend_files:
+  mssql_data:
